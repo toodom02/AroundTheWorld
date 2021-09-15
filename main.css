@@ -1,25 +1,71 @@
-@import url("https://fonts.googleapis.com/css2?family=Roboto&display=swap");
 body {
   margin: 0;
-  font-family: "Roboto", sans-serif;
+  background-color: black;
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+  overflow: hidden;
+}
+
+canvas {
+  z-index: -1;
+  opacity: 0;
+  animation: fadeIn 5s ease forwards;
+}
+
+@keyframes fadeIn {
+  100% {
+    opacity: 1;
+  }
 }
 
 h1 {
-  font-size: 3em;
+  font-size: 3rem;
+  font-weight: 300;
+}
+
+.footer {
+  position: absolute;
+  bottom: 0;
+  margin: 1em;
+}
+
+.footer a {
+  color: white;
+}
+
+.unmute {
+  z-index: 1;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  margin: 1em;
+  background-image: url(/resources/volume.svg);
+  background-size: cover;
+  width: 3em;
+  height: 2.5em;
+  cursor: pointer;
+}
+
+.mute {
+  background-image: url(/resources/mute.svg);
 }
 
 #menu {
+  z-index: 1;
   position: absolute;
   color: white;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   text-align: center;
-  align-items: center;
   display: flex;
-  flex-direction: column;
   justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
   max-width: 100%;
+}
+
+#title {
+  text-shadow: 0.5em 0 0.5em black, 0 0.5em 0.5em black, -0.5em 0 0.5em black,
+    0 -0.5em 0.5em black;
 }
 
 #start-button {
@@ -28,20 +74,20 @@ h1 {
   width: 10em;
   border-radius: 5px;
   cursor: pointer;
-  font-family: "Roboto", sans-serif;
   display: flex;
   flex-direction: column;
   justify-content: center;
   transition: 0.8s ease;
+  opacity: 0;
+  animation-delay: 3s !important;
+  animation: fadeIn 5s ease forwards;
 }
 
-#start-button:hover {
+#start-button:hover,
+#start-button:focus {
   -webkit-box-shadow: 0px 0px 10px 0px #ffffff;
   -moz-box-shadow: 0px 0px 10px 0px #ffffff;
   box-shadow: 0px 0px 10px 0px #ffffff;
+  text-shadow: 0px 0px 10px #ffffff;
   transition: 0.8s ease;
-}
-
-.show {
-  display: block;
 }

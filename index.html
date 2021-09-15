@@ -7,17 +7,38 @@
       
         <title>Around The World</title>
         <meta name="description" content="three.js app">
+
+        <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+        <link rel="manifest" href="/static/site.webmanifest">
+        <link rel="shortcut icon" href="/static/favicon.ico">
+        <meta name="msapplication-TileColor" content="#2b5797">
+        <meta name="msapplication-config" content="/static/browserconfig.xml">
+        <meta name="theme-color" content="#000000">
         
-        <link rel="stylesheet" href="./main.css" type="text/css">
-      
+        <link rel="stylesheet" href="./main.css" type="text/css">        
       </head>
 
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>
+
         <div id="menu">
-            <h1>Around The World</h1>
-            <div id="start-button">Start</div>
+            <audio loop id="music">
+                <source src="./resources/background.mp3" type="audio/mpeg">
+              </audio>
+            <h1 id="title">Around The World</h1>
+            <div id="start-button" tabindex=0>Start</div>
+            <div class="footer">
+                <a href="https://github.com/toodom02/AroundTheWorld" target="_blank">GitHub</a>
+            </div>
         </div>
+        <div id="music-control" class="unmute"  tabindex=0 onclick="
+            const audioelem = document.getElementById('music');
+            audioelem.muted = !audioelem.muted;
+            document.getElementById('music-control').classList.toggle('mute')"
+        >
+    </div>
     </body>
 
     <script type="module" src="./src/main.js"></script>

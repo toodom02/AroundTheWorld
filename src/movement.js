@@ -1,5 +1,6 @@
 import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 import { FBXLoader } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/loaders/FBXLoader';
+import * as CANNON from 'https://cdn.skypack.dev/cannon-es@0.18.0';
 
 class CharacterControllerProxy {
     constructor(animations) {
@@ -13,11 +14,11 @@ class CharacterControllerProxy {
 
 export class CharacterController {
     constructor(params) {
-        this._Init(params);
+        this._params = params;
+        this._Init();
     }
 
-    _Init(params) {
-        this._params = params;
+    _Init() {
         this._decceleration = new THREE.Vector3(-0.0005, -0.0001, -5.0);
         this._acceleration = new THREE.Vector3(1, 0.25, 50.0);
         this._velocity = new THREE.Vector3(0, 0, 0);
@@ -32,7 +33,7 @@ export class CharacterController {
 
     _LoadModels() {
         const loader = new FBXLoader();
-        loader.setPath('./resources/');
+        loader.setPath('./resources/models/');
         loader.load('timmy.fbx', (fbx) => {
             fbx.scale.setScalar(0.1);
             fbx.traverse(c => {
@@ -43,6 +44,19 @@ export class CharacterController {
             this._target = fbx;
             this._params.scene.add(this._target);
 
+            // make physics sphere
+            this.offset = 5;
+            this.playerBody = new CANNON.Body({
+                mass: 50,
+                shape: new CANNON.Sphere(3),
+                linearDamping: 0.5,
+            });
+            this.playerBody.position.x = fbx.position.x;
+            this.playerBody.position.y = fbx.position.y+3;
+            this.playerBody.position.z = fbx.position.z;
+            this._params.world.addBody(this.playerBody);
+
+            // manage animations
             this._mixer = new THREE.AnimationMixer(this._target);
 
             this._manager = new THREE.LoadingManager();
@@ -89,7 +103,7 @@ export class CharacterController {
         const velocity = this._velocity;
         const frameDecceleration = new THREE.Vector3(
             velocity.x * this._decceleration.x,
-            velocity.y * this._decceleration.y,
+            0,
             velocity.z * this._decceleration.z
         );
         frameDecceleration.multiplyScalar(timeInSeconds);
@@ -144,7 +158,11 @@ export class CharacterController {
         controlObject.position.add(forward);
         controlObject.position.add(sideways);
 
+        controlObject.position.y = this.playerBody.position.y - 3;
         this._position.copy(controlObject.position);
+        this.playerBody.position.x = this._position.x;
+        this.playerBody.position.z = this._position.z;
+        
     
         if (this._mixer) {
           this._mixer.update(timeInSeconds);
