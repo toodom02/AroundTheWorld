@@ -1,6 +1,10 @@
 import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 
 export class ThirdPersonCamera {
+    private _params: any;
+    _camera: THREE.PerspectiveCamera;
+    _currentPosition: THREE.Vector3;
+    _currentLookat: THREE.Vector3;
     constructor(params) {
         this._params = params;
         this._camera = params.camera;

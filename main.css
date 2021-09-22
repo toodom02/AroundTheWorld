@@ -38,7 +38,7 @@ h1 {
   bottom: 0;
   right: 0;
   margin: 1em;
-  background-image: url(/resources/volume.svg);
+  background-image: url(./resources/volume.svg);
   background-size: cover;
   width: 3em;
   height: 2.5em;
@@ -46,7 +46,7 @@ h1 {
 }
 
 .mute {
-  background-image: url(/resources/mute.svg);
+  background-image: url(./resources/mute.svg);
 }
 
 #menu {
@@ -79,7 +79,6 @@ h1 {
   justify-content: center;
   transition: 0.8s ease;
   opacity: 0;
-  animation-delay: 3s !important;
   animation: fadeIn 5s ease forwards;
 }
 
