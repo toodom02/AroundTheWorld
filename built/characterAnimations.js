@@ -18,9 +18,9 @@ class FiniteStateMachine {
         this._currentState = state;
         state.Enter(prevState);
     }
-    Update(timeElapsed, input) {
+    Update(input) {
         if (this._currentState) {
-            this._currentState.Update(timeElapsed, input);
+            this._currentState.Update(input);
         }
     }
 }
@@ -42,9 +42,9 @@ class State {
     constructor(parent) {
         this._parent = parent;
     }
-    Enter() { }
+    Enter(prevState) { }
     Exit() { }
-    Update() { }
+    Update(input) { }
 }
 ;
 class IdleState extends State {
@@ -66,7 +66,7 @@ class IdleState extends State {
         }
         curAction.play();
     }
-    Update(_, input) {
+    Update(input) {
         if (input._keys.forward) {
             this._parent.SetState('walk');
         }
@@ -103,7 +103,7 @@ class WalkState extends State {
     }
     Exit() {
     }
-    Update(_, input) {
+    Update(input) {
         if (input._keys.forward) {
             if (input._keys.shift) {
                 this._parent.SetState('run');
@@ -139,7 +139,7 @@ class WalkBackState extends State {
         }
         curAction.play();
     }
-    Update(_, input) {
+    Update(input) {
         if (input._keys.backward) {
             if (input._keys.shift) {
                 this._parent.SetState('runback');
@@ -175,7 +175,7 @@ class RunState extends State {
         }
         curAction.play();
     }
-    Update(_, input) {
+    Update(input) {
         if (input._keys.forward) {
             if (!input._keys.shift) {
                 this._parent.SetState('walk');
@@ -211,7 +211,7 @@ class RunBackState extends State {
         }
         curAction.play();
     }
-    Update(_, input) {
+    Update(input) {
         if (input._keys.backward) {
             if (!input._keys.shift) {
                 this._parent.SetState('walkback');

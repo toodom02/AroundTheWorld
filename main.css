@@ -3,6 +3,7 @@ body {
   background-color: black;
   font-family: "Roboto", "Helvetica", "Arial", sans-serif;
   overflow: hidden;
+  text-align: center;
 }
 
 canvas {
@@ -23,9 +24,12 @@ h1 {
 }
 
 .footer {
+  z-index: 1;
   position: absolute;
   bottom: 0;
-  margin: 1em;
+  margin-bottom: 1em;
+  justify-content: center;
+  width: 100%;
 }
 
 .footer a {
@@ -53,7 +57,6 @@ h1 {
   z-index: 1;
   position: absolute;
   color: white;
-  text-align: center;
   display: flex;
   justify-content: center;
   align-items: center;

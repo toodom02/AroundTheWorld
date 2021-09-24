@@ -1,5 +1,6 @@
 import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 import * as CANNON from 'https://cdn.skypack.dev/cannon-es@0.18.0';
+// import cannonDebugger from 'https://cdn.skypack.dev/cannon-es-debugger@0.1.4';
 // import { OrbitControls } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/controls/OrbitControls';
 
 import { CharacterController } from './character.js';
@@ -27,9 +28,8 @@ class World {
     }
 
     _Init() {
-        this._loaded = [];
         this._started = false;
-        this._threejs = new THREE.WebGLRenderer({antialias: true});
+        this._threejs = new THREE.WebGLRenderer();
         this._threejs.shadowMap.enabled = true;
         this._threejs.shadowMap.type = THREE.PCFSoftShadowMap;
         this._threejs.setPixelRatio(window.devicePixelRatio);
@@ -44,7 +44,7 @@ class World {
         const fov = 75;
         const aspect = window.innerWidth / window.innerHeight;
         const near = 0.1;
-        const far = 1000;
+        const far = 750;
 
         this._camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
         this._camera.position.set(0, 150, 300);
@@ -76,14 +76,21 @@ class World {
         this._world = new CANNON.World();
         this.gravity = 100;
         this._world.gravity.set(0, -this.gravity, 0);
+        // this.cannonDebugRenderer = new cannonDebugger(this._scene, this._world.bodies);
 
         this.groundMaterial = new CANNON.Material("groundMaterial");
+
+        // Adjust constraint equation parameters for ground/ground contact
+        const ground_ground_cm = new CANNON.ContactMaterial(this.groundMaterial, this.groundMaterial, {
+            friction: 0.4,
+            restitution: 0.3,
+        });
+        this._world.addContactMaterial(ground_ground_cm);
 
         // create eveything in scene/world
         this._environ = new Environment({
             scene: this._scene,
             world: this._world,
-            loaded: this._loaded,
             groundMaterial: this.groundMaterial,
         });
 
@@ -103,15 +110,13 @@ class World {
       }
 
     _LoadAnimatedModel() {
-        const params = {
+        this._controls = new CharacterController({
             camera: this._camera,
             scene: this._scene,
             world: this._world,
             planetRadius: this._planetRadius,
-            loaded: this._loaded,
             groundMaterial: this.groundMaterial,
-        }
-        this._controls = new CharacterController(params);
+        });
 
         this._thirdPersonCamera = new ThirdPersonCamera({
            camera: this._camera,
@@ -127,8 +132,7 @@ class World {
                 this._threejs.render(this._scene, this._camera);
             });
             // enable start when assets loaded
-            // remember to increment value when adding more assets
-            if (this._loaded.length >= 3) {
+            if (this._environ.environLoaded && this._controls.characterLoaded) {
                 const startButton = document.getElementById("start-button");
                 startButton.innerHTML = "Start";
                 startButton.onclick = function () {
@@ -159,7 +163,6 @@ class World {
 
             this._environ.animate();
             this._environ._handlePhysicsObjects();
-            // this._updateGravity();
 
             this._threejs.render(this._scene, this._camera);
             this._Step(t - this._previousRAF);

@@ -1,7 +1,7 @@
 import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
-import { FBXLoader } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/loaders/FBXLoader';
 import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/loaders/GLTFLoader';
 import * as CANNON from 'https://cdn.skypack.dev/cannon-es@0.18.0';
+
 
 import { threeToCannon, ShapeType  } from 'https://cdn.skypack.dev/three-to-cannon@v4.0.2';
 
@@ -14,76 +14,203 @@ export class Environment{
     moon: THREE.Mesh;
     pivotPoint: THREE.Object3D;
     particlesMesh: THREE.Points;
+    environLoaded: boolean;
     constructor(params) {
         this._params = params;
         this._Init();
     }
 
     _Init() {
-        this._createPlanet();
+        this.environLoaded = false;
+        this._planetRadius = 100;
+        this._atmosphereRadius = 100;
         this._createStars();
         this._createMoon();
+        this._createScene();
+        this._createPhysicsObject();
     }
 
-    _createPlanet() {
-        this._planetRadius = 100;
-        this._atmosphereRadius = 50;
+    _createScene() {
+        const gltfloader = new GLTFLoader();
+        gltfloader.setPath('./resources/models/scene/');
 
-        // Adjust constraint equation parameters for ground/ground contact
-        const ground_ground_cm = new CANNON.ContactMaterial(this._params.groundMaterial, this._params.groundMaterial, {
-            friction: 0.4,
-            restitution: 0.3,
-        });
-
-        // Add contact material to the world
-        this._params.world.addContactMaterial(ground_ground_cm);
-
-        const loader = new GLTFLoader();
-        loader.setPath('./resources/models/');
-        loader.load('rock.glb', (gltf) => {
+        gltfloader.load('island.glb', (gltf) => {
             gltf.scene.traverse(c => {
                 c.receiveShadow = true;
-            })
+                c.castShadow = true;
+            });
             this._params.scene.add(gltf.scene);
-
-            const planetConvert = threeToCannon(gltf.scene, {type: ShapeType.HULL});
-            const {shape} = planetConvert;
-            const planetBody = new CANNON.Body({
+        
+            const cannonConvert = threeToCannon(gltf.scene, {type: ShapeType.HULL});
+            const {shape} = cannonConvert;
+            const body = new CANNON.Body({
                 mass: 0,
                 shape: shape,
                 material: this._params.groundMaterial,
             });
-            this._params.world.addBody(planetBody);
-            this._params.loaded.push('planet');
+            this._params.world.addBody(body);
         });
 
-        const fbxloader = new FBXLoader();
-        fbxloader.setPath('./resources/models/');
-        fbxloader.load('tree.fbx', (fbx) => {
-            fbx.scale.setScalar(0.05);
-            fbx.traverse(c => {
+        gltfloader.load('rock-large.glb', (gltf) => {
+            gltf.scene.traverse(c => {
+                c.receiveShadow = true;
                 c.castShadow = true;
-            })
-            this._params.scene.add(fbx);
-            fbx.position.set(0,0,0);
+            });
+            gltf.scene.position.set(60, 0, -20);
+            this._params.scene.add(gltf.scene); 
 
-            const halfExtents = new THREE.Vector3(4, 16, 3);
 
-            const treeBody = new CANNON.Body({
+            const cannonConvert = threeToCannon(gltf.scene, {type: ShapeType.HULL});
+            const {shape} = cannonConvert;
+            const body = new CANNON.Body({
                 mass: 0,
-                shape: new CANNON.Box(halfExtents),
+                shape: shape,
+                material: this._params.groundMaterial,
+                position: gltf.scene.position,
+            });
+            // small correction to angle
+            body.quaternion.setFromEuler(0, 11*Math.PI/6, 0);
+            this._params.world.addBody(body);
+        });
+
+        gltfloader.load('rock-small.glb', (gltf) => {
+            gltf.scene.traverse(c => {
+                c.receiveShadow = true;
+                c.castShadow = true;
+            });
+            gltf.scene.position.set(-33, 0, 55);
+            this._params.scene.add(gltf.scene);
+
+            const cannonConvert = threeToCannon(gltf.scene, {type: ShapeType.HULL});
+            const body = new CANNON.Body({
+                mass: 0,
+                shape: cannonConvert.shape,
+                material: this._params.groundMaterial,
+                position: gltf.scene.position,
+            });
+            this._params.world.addBody(body);
+
+            const rock2 = gltf.scene.clone();
+            rock2.scale.setScalar(0.5);
+            rock2.position.set(-6, 0, 70);
+            rock2.rotation.set(0, Math.PI / 2, 0)
+            this._params.scene.add(rock2);
+
+            const body2 = new CANNON.Body({
+                mass: 0,
+                // converter not working for scaled object
+                shape: new CANNON.Sphere(3),
+                material: this._params.groundMaterial,
+                position: rock2.position,
+            });
+            body2.position.x -= 0.5;
+            body2.position.z += 1;
+            body2.position.y += body2.shapes[0].radius
+            this._params.world.addBody(body2);
+
+            const rock3 = gltf.scene.clone();
+            rock3.scale.setScalar(0.7);
+            rock3.position.set(-45, 0, 30);
+            this._params.scene.add(rock3);
+
+            const body3 = new CANNON.Body({
+                mass: 0,
+                // converter not working for scaled object
+                shape: new CANNON.Sphere(4),
+                material: this._params.groundMaterial,
+                position: rock3.position,
+            });
+            body3.position.x -= 2;
+            body3.position.y += body3.shapes[0].radius
+            this._params.world.addBody(body3);
+        });
+
+        gltfloader.load('spikey-tree.glb', (gltf) => {
+            gltf.scene.traverse(c => {
+                c.receiveShadow = true;
+                c.castShadow = true;
+            });
+            gltf.scene.position.set(-20, 0, 60);
+            this._params.scene.add(gltf.scene);
+
+            const shape = new CANNON.Cylinder(7, 7, 45);
+            const body = new CANNON.Body({
+                mass: 0,
+                shape: shape,
                 material: this._params.groundMaterial,
             });
-            treeBody.position.copy(fbx.position);
-            treeBody.position.y += halfExtents.y;
-            treeBody.position.x -= 1
-            
-            this._params.world.addBody(treeBody);
-            this._params.loaded.push('tree');
+            body.position.copy(gltf.scene.position);
+            body.position.y += shape.height / 2;
+            this._params.world.addBody(body);
+
+            const tree2 = gltf.scene.clone();
+            tree2.position.set(-30, 0, 38);
+            tree2.rotation.set(0, 2.7, 0);
+            this._params.scene.add(tree2);
+
+            const body2 = new CANNON.Body({
+                mass: 0,
+                shape: shape,
+                material: this._params.groundMaterial,
+            });
+            body2.position.copy(tree2.position);
+            body2.position.y += shape.height / 2;
+            this._params.world.addBody(body2);
+
+            const tree3 = gltf.scene.clone();
+            tree3.position.set(-50, 0, 45);
+            tree3.rotation.set(0, 1.1, 0);
+            this._params.scene.add(tree3);
+
+            const body3 = new CANNON.Body({
+                mass: 0,
+                shape: shape,
+                material: this._params.groundMaterial,
+            });
+            body3.position.copy(tree3.position);
+            body3.position.y += shape.height / 2;
+            this._params.world.addBody(body3);
         });
+        gltfloader.load('tree.glb', (gltf) => {
+            gltf.scene.traverse(c => {
+                c.receiveShadow = true;
+                c.castShadow = true;
+            });
+            this._params.scene.add(gltf.scene);
 
+            const body = new CANNON.Body({
+                mass: 0,
+                shape: new CANNON.Cylinder(7, 7, 40),
+                material: this._params.groundMaterial,
+            });
+            body.position.copy(gltf.scene.position);
+            body.position.y += body.shapes[0].height / 2;
+            this._params.world.addBody(body);
+        });
+        gltfloader.load('log.glb', (gltf) => {
+            gltf.scene.traverse(c => {
+                c.receiveShadow = true;
+                c.castShadow = true;
+            });
+            gltf.scene.position.set(-30, 0, -55);
+            gltf.scene.rotation.set(0, 20, 0);
+            this._params.scene.add(gltf.scene);
 
-        const cubeSides = new THREE.Vector3(3, 3, 3)
+            const body = new CANNON.Body({
+                mass: 0,
+                shape: new CANNON.Cylinder(2, 2, 20),
+                material: this._params.groundMaterial,
+                position: gltf.scene.position,
+            })
+            body.position.y += body.shapes[0].radiusTop;
+            body.quaternion.setFromEuler(Math.PI/2, 0, 20 * Math.PI/180);
+            this._params.world.addBody(body);            
+        });
+        this.environLoaded = true;
+    }
+
+    _createPhysicsObject() {
+        const cubeSides = new THREE.Vector3(3, 3, 3);
         const cubeGeometry = new THREE.BoxBufferGeometry(cubeSides.x*2, cubeSides.y*2, cubeSides.z*2);
         const cubeMaterial = new THREE.MeshPhongMaterial({color:0x606060});
         this.cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
@@ -93,11 +220,10 @@ export class Environment{
         this._params.scene.add(this.cube);
         
         this.cubeBody = new CANNON.Body({
-            mass: 2,
+            mass: 10,
             shape: new CANNON.Box(cubeSides),
             material: this._params.groundMaterial,
         });
-
         this.cubeBody.position.copy(this.cube.position);
 
         this._params.world.addBody(this.cubeBody);
@@ -131,17 +257,17 @@ export class Environment{
         const posArray = new Float32Array(particlescnt * 3);
         for (let i = 0; i < particlescnt * 3; i+=3) {
             // generates values outside of planet
-            posArray[i] = (Math.random() - 0.5) * 500;
+            posArray[i] = (Math.random() - 0.5) * 1000;
             if (Math.abs(posArray[i]) < this._planetRadius + this._atmosphereRadius) {
-                posArray[i+1] = (Math.random() - 0.5) * 500;
+                posArray[i+1] = (Math.random() - 0.5) * 1000;
                 if (Math.abs(posArray[i+1]) < this._planetRadius + this._atmosphereRadius) {
-                    posArray[i+2] = (Math.random() * (500 - this._planetRadius-this._atmosphereRadius) + this._planetRadius+this._atmosphereRadius) * (Math.random() < 0.5 ? -1 : 1);
+                    posArray[i+2] = (Math.random() * (1000 - this._planetRadius-this._atmosphereRadius) + this._planetRadius+this._atmosphereRadius) * (Math.random() < 0.5 ? -1 : 1);
                 } else {
-                    posArray[i+2] = (Math.random() - 0.5) * 500;
+                    posArray[i+2] = (Math.random() - 0.5) * 1000;
                 }
             } else {
-                posArray[i+1] = (Math.random() - 0.5) * 500;
-                posArray[i+2] = (Math.random() - 0.5) * 500;
+                posArray[i+1] = (Math.random() - 0.5) * 1000;
+                posArray[i+2] = (Math.random() - 0.5) * 1000;
             }
         }
         particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
@@ -150,8 +276,10 @@ export class Environment{
     }
 
     _handlePhysicsObjects() {
-        this.cube.position.copy(this.cubeBody.position);
-        this.cube.quaternion.copy(this.cubeBody.quaternion);
+        if (this.cube){
+            this.cube.position.copy(this.cubeBody.position);
+            this.cube.quaternion.copy(this.cubeBody.quaternion);
+        }
     }
 
     animate() {

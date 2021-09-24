@@ -26,9 +26,9 @@ class FiniteStateMachine {
         state.Enter(prevState);
     }
 
-    Update(timeElapsed, input) {
+    Update(input) {
         if (this._currentState) {
-            this._currentState.Update(timeElapsed, input);
+            this._currentState.Update(input);
         }
     }
 }
@@ -56,9 +56,9 @@ class State {
       this._parent = parent;
     }
   
-    Enter() {}
+    Enter(prevState: any) {}
     Exit() {}
-    Update() {}
+    Update(input) {}
   };
 
 class IdleState extends State {
@@ -70,7 +70,7 @@ class IdleState extends State {
         return 'idle';
     }
 
-    Enter(prevState) {
+    Enter(prevState: any) {
         const curAction = this._parent._proxy._animations['idle'].action;
         if (prevState) {
             const prevAction = this._parent._proxy._animations[prevState.Name].action;
@@ -83,7 +83,7 @@ class IdleState extends State {
         curAction.play();
     }
 
-    Update(_, input) {
+    Update(input) {
         if (input._keys.forward) {
             this._parent.SetState('walk');
         } else if (input._keys.backward) {
@@ -101,7 +101,7 @@ class WalkState extends State {
         return 'walk';
     }
 
-    Enter(prevState) {
+    Enter(prevState: any) {
         const curAction = this._parent._proxy._animations['walk'].action;
         if (prevState) {
             const prevAction = this._parent._proxy._animations[prevState.Name].action;
@@ -123,7 +123,7 @@ class WalkState extends State {
     Exit() {
     }
 
-    Update(_, input) {
+    Update(input) {
         if (input._keys.forward) {
             if (input._keys.shift) {
                 this._parent.SetState('run');
@@ -143,7 +143,7 @@ class WalkBackState extends State {
         return 'walkback';
     }
 
-    Enter(prevState) {
+    Enter(prevState: any) {
         const curAction = this._parent._proxy._animations['walkback'].action;
         if (prevState) {
             const prevAction = this._parent._proxy._animations[prevState.Name].action;
@@ -162,7 +162,7 @@ class WalkBackState extends State {
         curAction.play();
     }
 
-    Update(_, input) {
+    Update(input) {
         if (input._keys.backward) {
             if (input._keys.shift) {
                 this._parent.SetState('runback');
@@ -183,7 +183,7 @@ class RunState extends State {
         return 'run';
     }
 
-    Enter(prevState) {
+    Enter(prevState: any) {
         const curAction = this._parent._proxy._animations['run'].action;
         if (prevState) {
             const prevAction = this._parent._proxy._animations[prevState.Name].action;
@@ -202,7 +202,7 @@ class RunState extends State {
         curAction.play();
     }
 
-    Update(_, input) {
+    Update(input) {
         if (input._keys.forward) {
             if (!input._keys.shift) {
                 this._parent.SetState('walk');
@@ -222,7 +222,7 @@ class RunBackState extends State {
         return 'runback';
     }
 
-    Enter(prevState) {
+    Enter(prevState: any) {
         const curAction = this._parent._proxy._animations['runback'].action;
         if (prevState) {
             const prevAction = this._parent._proxy._animations[prevState.Name].action;
@@ -241,7 +241,7 @@ class RunBackState extends State {
         curAction.play();
     }
 
-    Update(_, input) {
+    Update(input) {
         if (input._keys.backward) {
             if (!input._keys.shift) {
                 this._parent.SetState('walkback');

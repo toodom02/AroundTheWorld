@@ -17,10 +17,11 @@ export class CharacterController {
         this._Init();
     }
     _Init() {
-        this.startingPos = new THREE.Vector3(10, 1, 0);
+        this.characterLoaded = false;
+        this.startingPos = new THREE.Vector3(10, 3, 0);
         this.inputVelocity = new THREE.Vector3();
-        this.velocityFactor = 0.2;
-        this.jumpVelocity = 50;
+        this.velocityFactor = 1;
+        this.jumpVelocity = 45;
         this.canJump = false;
         this._animations = {};
         this._input = new CharacterControllerInput();
@@ -38,34 +39,33 @@ export class CharacterController {
             fbx.position.copy(this.startingPos);
             this._target = fbx;
             this._params.scene.add(this._target);
-            // make physics sphere
             const slipperyMaterial = new CANNON.Material("slipperyMaterial");
             const slippery_ground_cm = new CANNON.ContactMaterial(this._params.groundMaterial, slipperyMaterial, {
                 friction: 0,
-                restitution: 0.3,
+                restitution: 0.1,
             });
             this._params.world.addContactMaterial(slippery_ground_cm);
-            const halfExtents = new THREE.Vector3(2, 4, 2);
+            // make physics shape
+            const halfExtents = new THREE.Vector3(2, 8, 2);
             this.bodyRadius = halfExtents.y;
             this.playerBody = new CANNON.Body({
                 mass: 50,
                 shape: new CANNON.Box(halfExtents),
-                linearDamping: 0.9,
+                allowSleep: false,
+                fixedRotation: true,
                 material: slipperyMaterial,
             });
             this.playerBody.position.x = fbx.position.x;
             this.playerBody.position.y = fbx.position.y + this.bodyRadius;
             this.playerBody.position.z = fbx.position.z;
             this._params.world.addBody(this.playerBody);
-            this.playerBody.allowSleep = false;
-            this.playerBody.fixedRotation = true;
             this.playerBody.updateMassProperties();
             // manage animations
             this._mixer = new THREE.AnimationMixer(this._target);
             this._manager = new THREE.LoadingManager();
             this._manager.onLoad = () => {
                 this._stateMachine.SetState('idle');
-                this._params.loaded.push('anims');
+                this.characterLoaded = true;
             };
             const _OnLoad = (animName, anim) => {
                 const clip = anim.animations[0];
@@ -119,7 +119,7 @@ export class CharacterController {
         }
         this.inputVelocity.set(0, 0, 0);
         this._input.canJump = this.canJump;
-        this._stateMachine.Update(timeInSeconds, this._input);
+        this._stateMachine.Update(this._input);
         const velocity = this.playerBody.velocity;
         const _Q = new THREE.Quaternion();
         const _A = new THREE.Vector3(0, 1, 0);
@@ -129,11 +129,9 @@ export class CharacterController {
             acc = 3;
         }
         if (this._input._keys.forward) {
-            //  velocity.z += acc.z * timeInSeconds;
             this.inputVelocity.z = acc * this.velocityFactor * timeInSeconds * 100;
         }
         if (this._input._keys.backward) {
-            // velocity.z -= acc.z * timeInSeconds;
             this.inputVelocity.z = -acc * this.velocityFactor * timeInSeconds * 100;
         }
         if (this._input._keys.left) {
@@ -151,13 +149,15 @@ export class CharacterController {
         }
         this._target.quaternion.copy(_R);
         this.inputVelocity.applyQuaternion(_R);
+        velocity.x *= 0.8;
+        velocity.z *= 0.8;
         velocity.x += this.inputVelocity.x;
         velocity.z += this.inputVelocity.z;
         this._target.position.x = this.playerBody.position.x;
         this._target.position.y = this.playerBody.position.y - this.bodyRadius;
         this._target.position.z = this.playerBody.position.z;
         // reset pos if player falls
-        if (this.playerBody.position.y < -300) {
+        if (this.playerBody.position.y < -250) {
             this.playerBody.position.copy(this.startingPos);
             this._target.position.copy(this.startingPos);
             velocity.set(0, 0, 0);
