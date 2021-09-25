@@ -4,6 +4,7 @@ body {
   font-family: "Roboto", "Helvetica", "Arial", sans-serif;
   overflow: hidden;
   text-align: center;
+  color: white;
 }
 
 canvas {
@@ -21,6 +22,17 @@ canvas {
 h1 {
   font-size: 3rem;
   font-weight: 300;
+}
+
+#scorediv {
+  z-index: 1;
+  position: absolute;
+  display: none;
+  align-items: center;
+  margin-left: 1em;
+}
+#score {
+  padding-left: 0.5em;
 }
 
 .footer {
@@ -53,10 +65,9 @@ h1 {
   background-image: url(./resources/mute.svg);
 }
 
-#menu {
+.menu {
   z-index: 1;
   position: absolute;
-  color: white;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -71,7 +82,7 @@ h1 {
     0 -0.5em 0.5em black;
 }
 
-#start-button {
+.start-button {
   border: 2px solid #ffffff;
   height: 3em;
   width: 10em;
@@ -80,16 +91,33 @@ h1 {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  transition: 0.8s ease;
-  opacity: 0;
-  animation: fadeIn 5s ease forwards;
 }
 
-#start-button:hover,
-#start-button:focus {
+.start-button:hover,
+.start-button:focus {
   -webkit-box-shadow: 0px 0px 10px 0px #ffffff;
   -moz-box-shadow: 0px 0px 10px 0px #ffffff;
   box-shadow: 0px 0px 10px 0px #ffffff;
   text-shadow: 0px 0px 10px #ffffff;
   transition: 0.8s ease;
+}
+
+#start-button {
+  transition: 0.8s ease;
+  opacity: 0;
+  animation: fadeIn 5s ease forwards;
+}
+
+#gameover {
+  display: none;
+}
+
+#gameover-score-div {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+#gameover-score {
+  margin-left: 0.5em;
 }

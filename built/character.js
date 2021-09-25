@@ -78,7 +78,6 @@ export class CharacterController {
             const loader = new FBXLoader(this._manager);
             loader.setPath('./resources/animations/');
             loader.load('idle.fbx', (a) => { _OnLoad('idle', a); });
-            loader.load('jump.fbx', (a) => { _OnLoad('jump', a); });
             loader.load('walk.fbx', (a) => { _OnLoad('walk', a); });
             loader.load('run.fbx', (a) => { _OnLoad('run', a); });
             loader.load('walkback.fbx', (a) => { _OnLoad('walkback', a); });
@@ -112,6 +111,20 @@ export class CharacterController {
         if (!this._target)
             return new THREE.Quaternion();
         return this._target.quaternion;
+    }
+    ResetPlayer() {
+        this._target.position.copy(this.startingPos);
+        this.playerBody.position.x = this._target.position.x;
+        this.playerBody.position.y = this._target.position.y + this.bodyRadius;
+        this.playerBody.position.z = this._target.position.z;
+        this.playerBody.velocity.set(0, 0, 0);
+        this._target.rotation.set(0, 0, 0);
+    }
+    Enable() {
+        this._input.Enable();
+    }
+    Disable() {
+        this._input.Disable();
     }
     Update(timeInSeconds) {
         if (!this._target) {
@@ -158,9 +171,7 @@ export class CharacterController {
         this._target.position.z = this.playerBody.position.z;
         // reset pos if player falls
         if (this.playerBody.position.y < -250) {
-            this.playerBody.position.copy(this.startingPos);
-            this._target.position.copy(this.startingPos);
-            velocity.set(0, 0, 0);
+            this.ResetPlayer();
         }
         if (this._mixer) {
             this._mixer.update(timeInSeconds);
@@ -168,10 +179,7 @@ export class CharacterController {
     }
 }
 class CharacterControllerInput {
-    constructor() {
-        this._Init();
-    }
-    _Init() {
+    Enable() {
         this._keys = {
             forward: false,
             backward: false,
@@ -183,6 +191,19 @@ class CharacterControllerInput {
         this.canJump = false;
         document.addEventListener('keydown', (e) => this._onKeyDown(e), false);
         document.addEventListener('keyup', (e) => this._onKeyUp(e), false);
+    }
+    Disable() {
+        this._keys = {
+            forward: false,
+            backward: false,
+            left: false,
+            right: false,
+            space: false,
+            shift: false,
+        };
+        this.canJump = false;
+        document.removeEventListener('keydown', (e) => this._onKeyDown(e), false);
+        document.removeEventListener('keyup', (e) => this._onKeyUp(e), false);
     }
     _onKeyDown(e) {
         switch (e.keyCode) {

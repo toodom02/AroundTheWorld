@@ -24,16 +24,31 @@
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>
 
-        <div id="menu">
-            <audio loop id="music">
-                <source src="./resources/background.mp3" type="audio/mpeg">
-              </audio>
+        <div class="menu" id="menu">
             <h1 id="title">Around The World</h1>
-            <div id="start-button" tabindex=0>Loading...</div>
+            <div class="start-button" id="start-button" tabindex=0>Loading...</div>
         </div>
+
+        <div class="menu" id="gameover">
+            <h1>Game Over</h1>
+            <div id="gameover-score-div">
+                Score: <p id="gameover-score">0</p>
+            </div>
+            <div class="start-button" id="restart-button" tabindex=0>Restart</div>
+        </div>
+
+        <div id="scorediv">
+            Score:
+            <p id="score">0</p>
+        </div>
+
         <div class="footer">
             <a href="https://github.com/toodom02/AroundTheWorld" target="_blank">GitHub</a>
         </div>
+
+        <audio loop id="music">
+            <source src="./resources/background.mp3" type="audio/mpeg">
+          </audio>
         <div id="music-control" class="unmute"  tabindex=0 onclick="
             const audioelem = document.getElementById('music');
             audioelem.muted = !audioelem.muted;

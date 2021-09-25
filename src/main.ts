@@ -6,6 +6,7 @@ import * as CANNON from 'https://cdn.skypack.dev/cannon-es@0.18.0';
 import { CharacterController } from './character.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Environment } from './environment.js';
+import { Meteor } from './meteor.js';
 
 
 class World {
@@ -23,11 +24,17 @@ class World {
     _controls: CharacterController;
     _thirdPersonCamera: ThirdPersonCamera;
     groundMaterial: CANNON.Material;
+    meteors: Meteor[];
+    _score: number;
+    _scorediv: HTMLElement;
+    _initialMenu: boolean;
     constructor() {
         this._Init();
     }
 
     _Init() {
+        this._initialMenu = true;
+        this._scorediv = document.getElementById('score');
         this._started = false;
         this._threejs = new THREE.WebGLRenderer();
         this._threejs.shadowMap.enabled = true;
@@ -98,16 +105,28 @@ class World {
         this._previousRAF = null;
         this._LoadAnimatedModel();
 
+        this._Start();
         // const controls = new OrbitControls( this._camera, this._threejs.domElement );
 
         this._animateMenu();
+    }
+
+    _Start() {
+        this._score = 0;
+        this._scorediv.innerText = this._score.toString();
+        this.meteors = [];
+        this._thirdPersonCamera = new ThirdPersonCamera({
+            camera: this._camera,
+            target: this._controls,
+        });
+        this._controls.Enable();
     }
 
     _OnWindowResize() {
         this._camera.aspect = window.innerWidth / window.innerHeight;
         this._camera.updateProjectionMatrix();
         this._threejs.setSize(window.innerWidth, window.innerHeight);
-      }
+    }
 
     _LoadAnimatedModel() {
         this._controls = new CharacterController({
@@ -117,11 +136,69 @@ class World {
             planetRadius: this._planetRadius,
             groundMaterial: this.groundMaterial,
         });
+    }
 
-        this._thirdPersonCamera = new ThirdPersonCamera({
-           camera: this._camera,
-           target: this._controls,
-        });
+    _updateMeteors() {
+        for (let i = 0; i < this.meteors.length; i++) {
+            this.meteors[i].update();
+
+            // if meteor hit player
+            if (this.meteors[i].hitPlayer) {
+                this._GameOver();
+                return;
+            }
+
+            // remove meteor once hit
+            if (this.meteors[i].crash) {
+                this.meteors.splice(i, 1);
+                this._score += 1;
+                this._scorediv.innerText = this._score.toString();
+            }            
+        }
+
+        if (this.meteors.length < Math.min(5, this._score+1)) {
+            this.meteors.push(
+                new Meteor({
+                    scene: this._scene,
+                    world: this._world,
+                    playerBody: this._controls.playerBody,
+            }));
+        } else if (this._score > 25 && this.meteors.length < this._score / 5) {
+            this.meteors.push(
+                new Meteor({
+                    scene: this._scene,
+                    world: this._world,
+                    playerBody: this._controls.playerBody,
+            }));
+        }
+    }
+
+    _GameOver() {
+        this._started = false;
+        // delete all meteors
+        for (const m of this.meteors) m.delete();
+        this.meteors = [];
+
+        this._thirdPersonCamera = null;
+        this._controls.Disable();
+        this._controls.ResetPlayer();
+
+        this._camera.position.set(0, 150, 300);
+        this._camera.lookAt(0, 0, 0);
+        document.getElementById("scorediv").style.display="none";
+        document.getElementById("gameover").style.display="flex";
+        document.getElementById("gameover-score").innerText = this._score.toString();
+
+        const restartButton = document.getElementById("restart-button");
+        restartButton.onclick = function () {
+            _APP._started = true;
+            _APP._animate();
+            document.getElementById("gameover").style.display="none";
+            document.getElementById("scorediv").style.display="flex";
+            _APP._Start();
+        }
+        
+        this._animateMenu();
     }
 
     _animateMenu() {
@@ -131,29 +208,27 @@ class World {
                 this._environ.animate();
                 this._threejs.render(this._scene, this._camera);
             });
-            // enable start when assets loaded
-            if (this._environ.environLoaded && this._controls.characterLoaded) {
-                const startButton = document.getElementById("start-button");
-                startButton.innerHTML = "Start";
-                startButton.onclick = function () {
-                    _APP._started = true;
-                    _APP._animate();
-                    const audioelem = <HTMLAudioElement> document.getElementById('music')
-                    audioelem.play(); audioelem.volume = 0.2;
-                    document.getElementById("menu").style.display="none";
-                };
+            if (this._initialMenu) {
+                // enable start when assets loaded
+                if (this._environ.environLoaded && this._controls.characterLoaded) {
+                    const startButton = document.getElementById("start-button");
+                    startButton.innerHTML = "Start";
+                    startButton.onclick = function () {
+                        _APP._started = true;
+                        _APP._animate();
+                        _APP._initialMenu = false;
+                        const audioelem = <HTMLAudioElement> document.getElementById('music')
+                        audioelem.play(); audioelem.volume = 0.2;
+                        document.getElementById("menu").style.display="none";
+                        document.getElementById("scorediv").style.display="flex";
+                    };
+                }
             }
         }
     }
 
-    _updateGravity() {        
-        // change gravity around player (for globes)
-        const grav = this._controls.Position;
-        grav.multiplyScalar(-this.gravity / grav.length());
-        this._world.gravity.set(grav.x, grav.y, grav.z);
-    }
-
     _animate() {
+        if (!this._started) return;
         requestAnimationFrame((t) => {
             if (this._previousRAF === null) {
                 this._previousRAF = t;
@@ -164,6 +239,8 @@ class World {
             this._environ.animate();
             this._environ._handlePhysicsObjects();
 
+            this._updateMeteors();
+
             this._threejs.render(this._scene, this._camera);
             this._Step(t - this._previousRAF);
             this._previousRAF = t;
@@ -173,17 +250,20 @@ class World {
     
     _Step(timeElapsed) {
         const timeElapsedS = timeElapsed * 0.001;
+
         if (this._mixers) {
-          this._mixers.map(m => m.update(timeElapsedS));
+            this._mixers.map(m => m.update(timeElapsedS));
         }
     
         if (this._controls) {
-          this._controls.Update(timeElapsedS);
+            this._controls.Update(timeElapsedS);
+        }
+
+        if (this._thirdPersonCamera) {
+            this._thirdPersonCamera.Update(timeElapsedS);
         }
 
         this._world.step(1/60, timeElapsedS);
-
-        this._thirdPersonCamera.Update(timeElapsedS);
     }
 
 }

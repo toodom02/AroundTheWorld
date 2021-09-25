@@ -176,21 +176,23 @@ export class Environment {
         this.environLoaded = true;
     }
     _createPhysicsObject() {
-        const cubeSides = new THREE.Vector3(3, 3, 3);
-        const cubeGeometry = new THREE.BoxBufferGeometry(cubeSides.x * 2, cubeSides.y * 2, cubeSides.z * 2);
-        const cubeMaterial = new THREE.MeshPhongMaterial({ color: 0x606060 });
-        this.cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-        this.cube.castShadow = true;
-        this.cube.receiveShadow = true;
-        this.cube.position.set(5, 50, 15);
-        this._params.scene.add(this.cube);
-        this.cubeBody = new CANNON.Body({
-            mass: 10,
-            shape: new CANNON.Box(cubeSides),
+        const radius = 3;
+        const texture = THREE.ImageUtils.loadTexture("./resources/ball-texture.png");
+        texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+        const ballGeometry = new THREE.SphereGeometry(radius);
+        const ballMaterial = new THREE.MeshPhongMaterial({ map: texture });
+        this.ball = new THREE.Mesh(ballGeometry, ballMaterial);
+        this.ball.castShadow = true;
+        this.ball.receiveShadow = true;
+        this.ball.position.set(5, 50, 15);
+        this._params.scene.add(this.ball);
+        this.ballBody = new CANNON.Body({
+            mass: 2,
+            shape: new CANNON.Sphere(radius),
             material: this._params.groundMaterial,
         });
-        this.cubeBody.position.copy(this.cube.position);
-        this._params.world.addBody(this.cubeBody);
+        this.ballBody.position.copy(this.ball.position);
+        this._params.world.addBody(this.ballBody);
     }
     _createMoon() {
         const moonGeometry = new THREE.SphereGeometry(50, 32, 16);
@@ -237,9 +239,13 @@ export class Environment {
         this._params.scene.add(this.particlesMesh);
     }
     _handlePhysicsObjects() {
-        if (this.cube) {
-            this.cube.position.copy(this.cubeBody.position);
-            this.cube.quaternion.copy(this.cubeBody.quaternion);
+        if (this.ball) {
+            this.ball.position.copy(this.ballBody.position);
+            this.ball.quaternion.copy(this.ballBody.quaternion);
+            if (this.ballBody.position.y < -250) {
+                this.ballBody.velocity.set(0, 0, 0);
+                this.ballBody.position.set(5, 50, 15);
+            }
         }
     }
     animate() {
