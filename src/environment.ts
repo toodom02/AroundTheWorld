@@ -211,8 +211,7 @@ export class Environment{
 
     _createPhysicsObject() {
         const radius = 3;
-        const texture = THREE.ImageUtils.loadTexture("./resources/ball-texture.png");
-        texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+        const texture = new THREE.TextureLoader().load("./resources/ball-texture.png");
         const ballGeometry = new THREE.SphereGeometry(radius);
         const ballMaterial = new THREE.MeshPhongMaterial({ map: texture });
         this.ball = new THREE.Mesh(ballGeometry, ballMaterial);
@@ -233,7 +232,7 @@ export class Environment{
 
     _createMoon() {
         const moonGeometry = new THREE.SphereGeometry(50, 32, 16);
-        const moonMaterial = new THREE.MeshPhongMaterial({ color:0x900C3F  });
+        const moonMaterial = new THREE.MeshPhongMaterial({ color:0x900C3F });
         this.moon = new THREE.Mesh(moonGeometry, moonMaterial);
         this.moon.castShadow = true;
         this.moon.receiveShadow = true;

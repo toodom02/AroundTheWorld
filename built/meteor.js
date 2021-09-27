@@ -8,7 +8,7 @@ export class Meteor {
     _Init() {
         this.hitPlayer = false;
         this.crash = false;
-        this.radius = Math.floor(Math.random() * 10 + 10);
+        this.radius = Math.floor(Math.random() * 10 + 5);
         const x = Math.random() - 0.5;
         const y = Math.random() * 0.8 + 0.2;
         const z = Math.random() - 0.5;
@@ -27,10 +27,13 @@ export class Meteor {
         this.body.addEventListener('collide', (event) => {
             const { contact } = event;
             this.crash = true;
-            if (contact.bi.id === this._params.playerBody.id || contact.bj.id === this._params.playerBody.id) {
+            if (contact.bj.id === this._params.playerBody.id) {
                 this.hitPlayer = true;
             }
         });
+    }
+    get Position() {
+        return this.body.position;
     }
     createThreeObject() {
         const geometry = new THREE.SphereGeometry(this.radius, 9, 6);

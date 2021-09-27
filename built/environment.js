@@ -177,8 +177,7 @@ export class Environment {
     }
     _createPhysicsObject() {
         const radius = 3;
-        const texture = THREE.ImageUtils.loadTexture("./resources/ball-texture.png");
-        texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+        const texture = new THREE.TextureLoader().load("./resources/ball-texture.png");
         const ballGeometry = new THREE.SphereGeometry(radius);
         const ballMaterial = new THREE.MeshPhongMaterial({ map: texture });
         this.ball = new THREE.Mesh(ballGeometry, ballMaterial);

@@ -7,6 +7,7 @@ import { CharacterController } from './character.js';
 import { ThirdPersonCamera } from './camera.js';
 import { Environment } from './environment.js';
 import { Meteor } from './meteor.js';
+import { ParticleSystem } from './particles.js';
 
 
 class World {
@@ -28,11 +29,15 @@ class World {
     _score: number;
     _scorediv: HTMLElement;
     _initialMenu: boolean;
+    fireTexture: THREE.TextureLoader;
+    fires: ParticleSystem[];
     constructor() {
         this._Init();
     }
 
     _Init() {
+        this.fireTexture = new THREE.TextureLoader().load('./resources/fire.png');
+        
         this._initialMenu = true;
         this._scorediv = document.getElementById('score');
         this._started = false;
@@ -115,6 +120,7 @@ class World {
         this._score = 0;
         this._scorediv.innerText = this._score.toString();
         this.meteors = [];
+        this.fires = [];
         this._thirdPersonCamera = new ThirdPersonCamera({
             camera: this._camera,
             target: this._controls,
@@ -138,7 +144,13 @@ class World {
         });
     }
 
-    _updateMeteors() {
+    _updateMeteors(timeInSeconds) {
+        for (let j = 0; j < this.fires.length; j++) {
+            if (this.fires[j].deleted) {
+                this.fires.splice(j, 1);
+            }
+            else this.fires[j].Step(timeInSeconds);
+        }
         for (let i = 0; i < this.meteors.length; i++) {
             this.meteors[i].update();
 
@@ -157,18 +169,26 @@ class World {
         }
 
         if (this.meteors.length < Math.min(5, this._score+1)) {
-            this.meteors.push(
-                new Meteor({
-                    scene: this._scene,
-                    world: this._world,
-                    playerBody: this._controls.playerBody,
+            const m = new Meteor({
+                scene: this._scene,
+                world: this._world,
+                playerBody: this._controls.playerBody,
+            })
+            this.meteors.push(m);
+            this.fires.push(new ParticleSystem ({
+                scene: this._scene,
+                meteor: m,
             }));
         } else if (this._score > 25 && this.meteors.length < this._score / 5) {
-            this.meteors.push(
-                new Meteor({
-                    scene: this._scene,
-                    world: this._world,
-                    playerBody: this._controls.playerBody,
+            const m = new Meteor({
+                scene: this._scene,
+                world: this._world,
+                playerBody: this._controls.playerBody,
+            })
+            this.meteors.push(m);
+            this.fires.push(new ParticleSystem ({
+                scene: this._scene,
+                meteor: m,
             }));
         }
     }
@@ -178,6 +198,9 @@ class World {
         // delete all meteors
         for (const m of this.meteors) m.delete();
         this.meteors = [];
+
+        for (const p of this.fires) p.Delete();
+        this.fires = [];
 
         this._thirdPersonCamera = null;
         this._controls.Disable();
@@ -213,6 +236,7 @@ class World {
                 if (this._environ.environLoaded && this._controls.characterLoaded) {
                     const startButton = document.getElementById("start-button");
                     startButton.innerHTML = "Start";
+                    startButton.classList.add("loaded");
                     startButton.onclick = function () {
                         _APP._started = true;
                         _APP._animate();
@@ -239,8 +263,6 @@ class World {
             this._environ.animate();
             this._environ._handlePhysicsObjects();
 
-            this._updateMeteors();
-
             this._threejs.render(this._scene, this._camera);
             this._Step(t - this._previousRAF);
             this._previousRAF = t;
@@ -262,6 +284,8 @@ class World {
         if (this._thirdPersonCamera) {
             this._thirdPersonCamera.Update(timeElapsedS);
         }
+
+        this._updateMeteors(timeElapsedS);
 
         this._world.step(1/60, timeElapsedS);
     }

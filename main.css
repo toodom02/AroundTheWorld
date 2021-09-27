@@ -87,14 +87,17 @@ h1 {
   height: 3em;
   width: 10em;
   border-radius: 5px;
-  cursor: pointer;
+  cursor: default;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
-.start-button:hover,
-.start-button:focus {
+.loaded {
+  cursor: pointer;
+}
+.loaded:hover,
+.loaded:focus {
   -webkit-box-shadow: 0px 0px 10px 0px #ffffff;
   -moz-box-shadow: 0px 0px 10px 0px #ffffff;
   box-shadow: 0px 0px 10px 0px #ffffff;
@@ -106,6 +109,10 @@ h1 {
   transition: 0.8s ease;
   opacity: 0;
   animation: fadeIn 5s ease forwards;
+}
+
+#restart-button {
+  transition: 0.8s ease;
 }
 
 #gameover {
