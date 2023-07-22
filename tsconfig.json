@@ -1,9 +1,14 @@
 {
-    "compilerOptions": {
-      "outDir": "./built",
-      "allowJs": true,
-      "target": "es6",
-      "moduleResolution": "node"
-    },
-    "include": ["./src/**/*"]
-  }
+  "extends": "./node_modules/gts/tsconfig-google.json",
+  "compilerOptions": {
+    "lib": ["dom"],
+    "rootDir": ".",
+    "outDir": "build",
+    "module": "es6",
+    "moduleResolution": "node",
+    "strictPropertyInitialization": false,
+  },
+  "include": [
+    "src/*.ts",
+  ]
+}
