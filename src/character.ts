@@ -3,8 +3,15 @@ import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader';
 import * as CANNON from 'cannon-es';
 import {CharacterFSM} from './characterAnimations';
 
+type Animation = {
+  readonly action: THREE.AnimationAction;
+  readonly clip: THREE.AnimationClip;
+};
+
+type Animations = Record<string, Animation>;
+
 export class CharacterControllerProxy {
-  _animations: any;
+  _animations: Animations;
   constructor(animations: {}) {
     this._animations = animations;
   }
@@ -19,12 +26,11 @@ export class CharacterController {
     camera: THREE.Camera;
     scene: THREE.Scene;
     world: CANNON.World;
-    planetRadius: number;
     groundMaterial: CANNON.Material;
   };
   startingPos: THREE.Vector3;
   canJump: boolean;
-  _animations: any;
+  _animations: Animations;
   _input: CharacterControllerInput;
   _stateMachine: CharacterFSM;
   _target: THREE.Group;
@@ -41,7 +47,6 @@ export class CharacterController {
     camera: THREE.Camera;
     scene: THREE.Scene;
     world: CANNON.World;
-    planetRadius: number;
     groundMaterial: CANNON.Material;
   }) {
     this._params = params;
@@ -50,7 +55,8 @@ export class CharacterController {
 
   _Init() {
     this.characterLoaded = false;
-    this.startingPos = new THREE.Vector3(10, 3, 0);
+    // TODO: Should be adjusted to 'planetRadius' (but this is undefined atm)
+    this.startingPos = new THREE.Vector3(0, 100, 0);
 
     this.inputVelocity = new THREE.Vector3();
     this.velocityFactor = 1;
@@ -60,7 +66,7 @@ export class CharacterController {
     this._animations = {};
     this._input = new CharacterControllerInput();
     this._stateMachine = new CharacterFSM(
-      new CharacterControllerProxy(this._animations)
+      new CharacterControllerProxy(this._animations),
     );
 
     this._LoadModels();
@@ -86,7 +92,7 @@ export class CharacterController {
         {
           friction: 0,
           restitution: 0.1,
-        }
+        },
       );
       this._params.world.addContactMaterial(slippery_ground_cm);
 
@@ -146,25 +152,28 @@ export class CharacterController {
 
       const contactNormal = new CANNON.Vec3(); // Normal in the contact, pointing *out* of whatever the player touched
       const upAxis = new CANNON.Vec3(0, 1, 0);
-      this.playerBody.addEventListener('collide', (event: any) => {
-        const {contact} = event;
+      this.playerBody.addEventListener(
+        'collide',
+        (event: {contact: CANNON.ContactEquation}) => {
+          const {contact} = event;
 
-        // contact.bi and contact.bj are the colliding bodies, and contact.ni is the collision normal.
-        // We do not yet know which one is which! Let's check.
-        if (contact.bi.id === this.playerBody.id) {
-          // bi is the player body, flip the contact normal
-          contact.ni.negate(contactNormal);
-        } else {
-          // bi is something else. Keep the normal as it is
-          contactNormal.copy(contact.ni);
-        }
+          // contact.bi and contact.bj are the colliding bodies, and contact.ni is the collision normal.
+          // We do not yet know which one is which! Let's check.
+          if (contact.bi.id === this.playerBody.id) {
+            // bi is the player body, flip the contact normal
+            contact.ni.negate(contactNormal);
+          } else {
+            // bi is something else. Keep the normal as it is
+            contactNormal.copy(contact.ni);
+          }
 
-        // If contactNormal.dot(upAxis) is between 0 and 1, we know that the contact normal is somewhat in the up direction.
-        if (contactNormal.dot(upAxis) > 0.5) {
-          // Use a "good" threshold value between 0 and 1 here!
-          this.canJump = true;
-        }
-      });
+          // If contactNormal.dot(upAxis) is between 0 and 1, we know that the contact normal is somewhat in the up direction.
+          if (contactNormal.dot(upAxis) > 0.5) {
+            // Use a "good" threshold value between 0 and 1 here!
+            this.canJump = true;
+          }
+        },
+      );
     });
   }
 

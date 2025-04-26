@@ -4,8 +4,6 @@ import * as CANNON from 'cannon-es';
 import {CharacterController} from './character';
 import {ThirdPersonCamera} from './camera';
 import {Environment} from './environment';
-import {Meteor} from './meteor';
-import {ParticleSystem} from './particles';
 
 class World {
   _started: boolean;
@@ -16,16 +14,13 @@ class World {
   gravity: number;
   _environ: Environment;
   _previousRAF: number;
-  _planetRadius: number;
   _controls: CharacterController;
   _thirdPersonCamera: ThirdPersonCamera;
   groundMaterial: CANNON.Material;
-  meteors: Meteor[];
   _score: number;
   _scorediv: HTMLElement;
   _initialMenu: boolean;
   fireTexture: THREE.Texture;
-  fires: ParticleSystem[];
   constructor() {
     this._Init();
   }
@@ -49,7 +44,7 @@ class World {
       () => {
         this._OnWindowResize();
       },
-      false
+      false,
     );
 
     const fov = 75;
@@ -80,13 +75,13 @@ class World {
     dirLight.shadow.camera.bottom = -100;
     this._scene.add(dirLight);
 
-    const ambLight = new THREE.AmbientLight(0x202020);
+    const ambLight = new THREE.AmbientLight(0x202020, 2);
     this._scene.add(ambLight);
 
     // initialise cannon world
     this._world = new CANNON.World();
     this.gravity = 100;
-    this._world.gravity.set(0, -this.gravity, 0);
+    this._world.gravity.set(0, -100, 0);
     // this.cannonDebugRenderer = new cannonDebugger(this._scene, this._world.bodies);
 
     this.groundMaterial = new CANNON.Material('groundMaterial');
@@ -98,7 +93,7 @@ class World {
       {
         friction: 0.4,
         restitution: 0.3,
-      }
+      },
     );
     this._world.addContactMaterial(ground_ground_cm);
 
@@ -125,9 +120,6 @@ class World {
 
   _Start() {
     this._score = 0;
-    this._scorediv.innerText = this._score.toString();
-    this.meteors = [];
-    this.fires = [];
     this._controls.Enable();
   }
 
@@ -142,96 +134,8 @@ class World {
       camera: this._camera,
       scene: this._scene,
       world: this._world,
-      planetRadius: this._planetRadius,
       groundMaterial: this.groundMaterial,
     });
-  }
-
-  _updateMeteors(timeInSeconds: number) {
-    for (let j = 0; j < this.fires.length; j++) {
-      if (this.fires[j].deleted) {
-        this.fires.splice(j, 1);
-      } else this.fires[j].Step(timeInSeconds);
-    }
-    for (let i = 0; i < this.meteors.length; i++) {
-      this.meteors[i].update();
-
-      // if meteor hit player
-      if (this.meteors[i].hitPlayer) {
-        this._GameOver();
-        return;
-      }
-
-      // remove meteor once hit
-      if (this.meteors[i].crash) {
-        this.meteors.splice(i, 1);
-        this._score += 1;
-        this._scorediv.innerText = this._score.toString();
-      }
-    }
-
-    if (this.meteors.length < Math.min(5, this._score + 1)) {
-      const m = new Meteor({
-        scene: this._scene,
-        world: this._world,
-        playerBody: this._controls.playerBody,
-      });
-      this.meteors.push(m);
-      this.fires.push(
-        new ParticleSystem({
-          scene: this._scene,
-          meteor: m,
-        })
-      );
-    } else if (this._score > 25 && this.meteors.length < this._score / 5) {
-      const m = new Meteor({
-        scene: this._scene,
-        world: this._world,
-        playerBody: this._controls.playerBody,
-      });
-      this.meteors.push(m);
-      this.fires.push(
-        new ParticleSystem({
-          scene: this._scene,
-          meteor: m,
-        })
-      );
-    }
-  }
-
-  _GameOver() {
-    this._started = false;
-    // delete all meteors
-    for (const m of this.meteors) m.delete();
-    this.meteors = [];
-
-    for (const p of this.fires) p.Delete();
-    this.fires = [];
-
-    this._controls.Disable();
-    this._controls.ResetPlayer();
-
-    this._camera.position.set(0, 150, 300);
-    this._camera.lookAt(0, 0, 0);
-
-    const scoreDiv = document.getElementById('scorediv')!;
-    const gameOverScreen = document.getElementById('gameover')!;
-    scoreDiv.style.display = 'none';
-    gameOverScreen.style.display = 'flex';
-    document.getElementById('gameover-score')!.innerText =
-      this._score.toString();
-
-    const restartButton = document.getElementById('restart-button')!;
-    restartButton.onclick = () => {
-      if (!_APP) return;
-      _APP._started = true;
-      _APP._animate();
-      gameOverScreen.style.display = 'none';
-      scoreDiv.style.display = 'flex';
-      _APP._Start();
-    };
-
-    this._animateMenu();
   }
 
   _animateMenu() {
@@ -255,10 +159,10 @@ class World {
             const audioelem = <HTMLAudioElement>(
               document.getElementById('music')
             );
-            audioelem.play();
+            void audioelem.play();
             audioelem.volume = 0.2;
             document.getElementById('menu')!.style.display = 'none';
-            document.getElementById('scorediv')!.style.display = 'flex';
+            // document.getElementById('scorediv')!.style.display = 'flex';
           };
         }
       }
@@ -293,8 +197,6 @@ class World {
     if (this._thirdPersonCamera) {
       this._thirdPersonCamera.Update(timeElapsedS);
     }
-
-    this._updateMeteors(timeElapsedS);
 
     this._world.step(1 / 60, timeElapsedS);
   }

@@ -1,7 +1,7 @@
 import {CharacterControllerInput, CharacterControllerProxy} from './character';
 
 class FiniteStateMachine {
-  _states: {};
+  _states: Record<string, typeof State>;
   _currentState: State | null;
   constructor() {
     this._states = {};
@@ -9,7 +9,6 @@ class FiniteStateMachine {
   }
 
   _AddState(name: string, type: typeof State) {
-    // @ts-ignore
     this._states[name] = type;
   }
 
@@ -63,7 +62,7 @@ class State {
   get Name() {
     return '';
   }
-  Enter(prevState: State) {}
+  Enter(prevState: State | null) {}
   Exit() {}
   Update(input: CharacterControllerInput) {}
 }

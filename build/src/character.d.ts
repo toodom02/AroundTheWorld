@@ -1,22 +1,26 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { CharacterFSM } from './characterAnimations';
+type Animation = {
+    readonly action: THREE.AnimationAction;
+    readonly clip: THREE.AnimationClip;
+};
+type Animations = Record<string, Animation>;
 export declare class CharacterControllerProxy {
-    _animations: any;
+    _animations: Animations;
     constructor(animations: {});
-    get animations(): any;
+    get animations(): Animations;
 }
 export declare class CharacterController {
     _params: {
         camera: THREE.Camera;
         scene: THREE.Scene;
         world: CANNON.World;
-        planetRadius: number;
         groundMaterial: CANNON.Material;
     };
     startingPos: THREE.Vector3;
     canJump: boolean;
-    _animations: any;
+    _animations: Animations;
     _input: CharacterControllerInput;
     _stateMachine: CharacterFSM;
     _target: THREE.Group;
@@ -33,7 +37,6 @@ export declare class CharacterController {
         camera: THREE.Camera;
         scene: THREE.Scene;
         world: CANNON.World;
-        planetRadius: number;
         groundMaterial: CANNON.Material;
     });
     _Init(): void;
@@ -60,3 +63,4 @@ export declare class CharacterControllerInput {
     _onKeyDown(e: KeyboardEvent): void;
     _onKeyUp(e: KeyboardEvent): void;
 }
+export {};
