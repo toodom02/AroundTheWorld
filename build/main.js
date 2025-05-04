@@ -66563,14 +66563,326 @@ const endShapeContactEvent = {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ CannonDebugger)
+/* harmony export */ });
+/* harmony import */ var cannon_es__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(2);
+/* harmony import */ var three__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(1);
+
+
+
+function CannonDebugger(scene, world, _temp) {
+  let {
+    color = 0x00ff00,
+    scale = 1,
+    onInit,
+    onUpdate
+  } = _temp === void 0 ? {} : _temp;
+  const _meshes = [];
+
+  const _material = new three__WEBPACK_IMPORTED_MODULE_0__.MeshBasicMaterial({
+    color: color != null ? color : 0x00ff00,
+    wireframe: true
+  });
+
+  const _tempVec0 = new cannon_es__WEBPACK_IMPORTED_MODULE_1__.Vec3();
+
+  const _tempVec1 = new cannon_es__WEBPACK_IMPORTED_MODULE_1__.Vec3();
+
+  const _tempVec2 = new cannon_es__WEBPACK_IMPORTED_MODULE_1__.Vec3();
+
+  const _tempQuat0 = new cannon_es__WEBPACK_IMPORTED_MODULE_1__.Quaternion();
+
+  const _sphereGeometry = new three__WEBPACK_IMPORTED_MODULE_0__.SphereGeometry(1);
+
+  const _boxGeometry = new three__WEBPACK_IMPORTED_MODULE_0__.BoxGeometry(1, 1, 1);
+
+  const _planeGeometry = new three__WEBPACK_IMPORTED_MODULE_0__.PlaneGeometry(10, 10, 10, 10); // Move the planeGeometry forward a little bit to prevent z-fighting
+
+
+  _planeGeometry.translate(0, 0, 0.0001);
+
+  function createConvexPolyhedronGeometry(shape) {
+    const geometry = new three__WEBPACK_IMPORTED_MODULE_0__.BufferGeometry(); // Add vertices
+
+    const positions = [];
+
+    for (let i = 0; i < shape.vertices.length; i++) {
+      const vertex = shape.vertices[i];
+      positions.push(vertex.x, vertex.y, vertex.z);
+    }
+
+    geometry.setAttribute('position', new three__WEBPACK_IMPORTED_MODULE_0__.Float32BufferAttribute(positions, 3)); // Add faces
+
+    const indices = [];
+
+    for (let i = 0; i < shape.faces.length; i++) {
+      const face = shape.faces[i];
+      const a = face[0];
+
+      for (let j = 1; j < face.length - 1; j++) {
+        const b = face[j];
+        const c = face[j + 1];
+        indices.push(a, b, c);
+      }
+    }
+
+    geometry.setIndex(indices);
+    geometry.computeBoundingSphere();
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
+  function createTrimeshGeometry(shape) {
+    const geometry = new three__WEBPACK_IMPORTED_MODULE_0__.BufferGeometry();
+    const positions = [];
+    const v0 = _tempVec0;
+    const v1 = _tempVec1;
+    const v2 = _tempVec2;
+
+    for (let i = 0; i < shape.indices.length / 3; i++) {
+      shape.getTriangleVertices(i, v0, v1, v2);
+      positions.push(v0.x, v0.y, v0.z);
+      positions.push(v1.x, v1.y, v1.z);
+      positions.push(v2.x, v2.y, v2.z);
+    }
+
+    geometry.setAttribute('position', new three__WEBPACK_IMPORTED_MODULE_0__.Float32BufferAttribute(positions, 3));
+    geometry.computeBoundingSphere();
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
+  function createHeightfieldGeometry(shape) {
+    const geometry = new three__WEBPACK_IMPORTED_MODULE_0__.BufferGeometry();
+    const s = shape.elementSize || 1; // assumes square heightfield, else i*x, j*y
+
+    const positions = shape.data.flatMap((row, i) => row.flatMap((z, j) => [i * s, j * s, z]));
+    const indices = [];
+
+    for (let xi = 0; xi < shape.data.length - 1; xi++) {
+      for (let yi = 0; yi < shape.data[xi].length - 1; yi++) {
+        const stride = shape.data[xi].length;
+        const index = xi * stride + yi;
+        indices.push(index + 1, index + stride, index + stride + 1);
+        indices.push(index + stride, index + 1, index);
+      }
+    }
+
+    geometry.setIndex(indices);
+    geometry.setAttribute('position', new three__WEBPACK_IMPORTED_MODULE_0__.Float32BufferAttribute(positions, 3));
+    geometry.computeBoundingSphere();
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
+  function createMesh(shape) {
+    let mesh = new three__WEBPACK_IMPORTED_MODULE_0__.Mesh();
+    const {
+      SPHERE,
+      BOX,
+      PLANE,
+      CYLINDER,
+      CONVEXPOLYHEDRON,
+      TRIMESH,
+      HEIGHTFIELD
+    } = cannon_es__WEBPACK_IMPORTED_MODULE_1__.Shape.types;
+
+    switch (shape.type) {
+      case SPHERE:
+        {
+          mesh = new three__WEBPACK_IMPORTED_MODULE_0__.Mesh(_sphereGeometry, _material);
+          break;
+        }
+
+      case BOX:
+        {
+          mesh = new three__WEBPACK_IMPORTED_MODULE_0__.Mesh(_boxGeometry, _material);
+          break;
+        }
+
+      case PLANE:
+        {
+          mesh = new three__WEBPACK_IMPORTED_MODULE_0__.Mesh(_planeGeometry, _material);
+          break;
+        }
+
+      case CYLINDER:
+        {
+          const geometry = new three__WEBPACK_IMPORTED_MODULE_0__.CylinderGeometry(shape.radiusTop, shape.radiusBottom, shape.height, shape.numSegments);
+          mesh = new three__WEBPACK_IMPORTED_MODULE_0__.Mesh(geometry, _material);
+          shape.geometryId = geometry.id;
+          break;
+        }
+
+      case CONVEXPOLYHEDRON:
+        {
+          const geometry = createConvexPolyhedronGeometry(shape);
+          mesh = new three__WEBPACK_IMPORTED_MODULE_0__.Mesh(geometry, _material);
+          shape.geometryId = geometry.id;
+          break;
+        }
+
+      case TRIMESH:
+        {
+          const geometry = createTrimeshGeometry(shape);
+          mesh = new three__WEBPACK_IMPORTED_MODULE_0__.Mesh(geometry, _material);
+          shape.geometryId = geometry.id;
+          break;
+        }
+
+      case HEIGHTFIELD:
+        {
+          const geometry = createHeightfieldGeometry(shape);
+          mesh = new three__WEBPACK_IMPORTED_MODULE_0__.Mesh(geometry, _material);
+          shape.geometryId = geometry.id;
+          break;
+        }
+    }
+
+    scene.add(mesh);
+    return mesh;
+  }
+
+  function scaleMesh(mesh, shape) {
+    const {
+      SPHERE,
+      BOX,
+      PLANE,
+      CYLINDER,
+      CONVEXPOLYHEDRON,
+      TRIMESH,
+      HEIGHTFIELD
+    } = cannon_es__WEBPACK_IMPORTED_MODULE_1__.Shape.types;
+
+    switch (shape.type) {
+      case SPHERE:
+        {
+          const {
+            radius
+          } = shape;
+          mesh.scale.set(radius * scale, radius * scale, radius * scale);
+          break;
+        }
+
+      case BOX:
+        {
+          mesh.scale.copy(shape.halfExtents);
+          mesh.scale.multiplyScalar(2 * scale);
+          break;
+        }
+
+      case PLANE:
+        {
+          break;
+        }
+
+      case CYLINDER:
+        {
+          mesh.scale.set(1 * scale, 1 * scale, 1 * scale);
+          break;
+        }
+
+      case CONVEXPOLYHEDRON:
+        {
+          mesh.scale.set(1 * scale, 1 * scale, 1 * scale);
+          break;
+        }
+
+      case TRIMESH:
+        {
+          mesh.scale.copy(shape.scale).multiplyScalar(scale);
+          break;
+        }
+
+      case HEIGHTFIELD:
+        {
+          mesh.scale.set(1 * scale, 1 * scale, 1 * scale);
+          break;
+        }
+    }
+  }
+
+  function typeMatch(mesh, shape) {
+    if (!mesh) return false;
+    const {
+      geometry
+    } = mesh;
+    return geometry instanceof three__WEBPACK_IMPORTED_MODULE_0__.SphereGeometry && shape.type === cannon_es__WEBPACK_IMPORTED_MODULE_1__.Shape.types.SPHERE || geometry instanceof three__WEBPACK_IMPORTED_MODULE_0__.BoxGeometry && shape.type === cannon_es__WEBPACK_IMPORTED_MODULE_1__.Shape.types.BOX || geometry instanceof three__WEBPACK_IMPORTED_MODULE_0__.PlaneGeometry && shape.type === cannon_es__WEBPACK_IMPORTED_MODULE_1__.Shape.types.PLANE || geometry.id === shape.geometryId && shape.type === cannon_es__WEBPACK_IMPORTED_MODULE_1__.Shape.types.CYLINDER || geometry.id === shape.geometryId && shape.type === cannon_es__WEBPACK_IMPORTED_MODULE_1__.Shape.types.CONVEXPOLYHEDRON || geometry.id === shape.geometryId && shape.type === cannon_es__WEBPACK_IMPORTED_MODULE_1__.Shape.types.TRIMESH || geometry.id === shape.geometryId && shape.type === cannon_es__WEBPACK_IMPORTED_MODULE_1__.Shape.types.HEIGHTFIELD;
+  }
+
+  function updateMesh(index, shape) {
+    let mesh = _meshes[index];
+    let didCreateNewMesh = false;
+
+    if (!typeMatch(mesh, shape)) {
+      if (mesh) scene.remove(mesh);
+      _meshes[index] = mesh = createMesh(shape);
+      didCreateNewMesh = true;
+    }
+
+    scaleMesh(mesh, shape);
+    return didCreateNewMesh;
+  }
+
+  function update() {
+    const meshes = _meshes;
+    const shapeWorldPosition = _tempVec0;
+    const shapeWorldQuaternion = _tempQuat0;
+    let meshIndex = 0;
+
+    for (const body of world.bodies) {
+      for (let i = 0; i !== body.shapes.length; i++) {
+        const shape = body.shapes[i];
+        const didCreateNewMesh = updateMesh(meshIndex, shape);
+        const mesh = meshes[meshIndex];
+
+        if (mesh) {
+          // Get world position
+          body.quaternion.vmult(body.shapeOffsets[i], shapeWorldPosition);
+          body.position.vadd(shapeWorldPosition, shapeWorldPosition); // Get world quaternion
+
+          body.quaternion.mult(body.shapeOrientations[i], shapeWorldQuaternion); // Copy to meshes
+
+          mesh.position.copy(shapeWorldPosition);
+          mesh.quaternion.copy(shapeWorldQuaternion);
+          if (didCreateNewMesh && onInit instanceof Function) onInit(body, mesh, shape);
+          if (!didCreateNewMesh && onUpdate instanceof Function) onUpdate(body, mesh, shape);
+        }
+
+        meshIndex++;
+      }
+    }
+
+    for (let i = meshIndex; i < meshes.length; i++) {
+      const mesh = meshes[i];
+      if (mesh) scene.remove(mesh);
+    }
+
+    meshes.length = meshIndex;
+  }
+
+  return {
+    update
+  };
+}
+
+
+
+
+/***/ }),
+/* 4 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   CharacterController: () => (/* binding */ CharacterController),
 /* harmony export */   CharacterControllerInput: () => (/* binding */ CharacterControllerInput),
 /* harmony export */   CharacterControllerProxy: () => (/* binding */ CharacterControllerProxy)
 /* harmony export */ });
 /* harmony import */ var three__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(1);
-/* harmony import */ var three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(4);
+/* harmony import */ var three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(5);
 /* harmony import */ var cannon_es__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(2);
-/* harmony import */ var _characterAnimations__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(8);
+/* harmony import */ var _characterAnimations__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(9);
 
 
 
@@ -66586,33 +66898,31 @@ class CharacterControllerProxy {
 }
 class CharacterController {
     _params;
-    startingPos;
-    canJump;
+    _canJump;
     _animations;
     _input;
     _stateMachine;
     _target;
-    bodyRadius;
-    playerBody;
+    _bodyRadius;
+    _playerBody;
     _mixer;
     _manager;
-    inputVelocity;
-    velocityFactor;
-    jumpVelocity;
+    _inputVelocity;
+    _forwardVelocity;
+    _velocityFactor;
+    _jumpVelocity;
     characterLoaded;
-    slipperyMaterial;
+    _slipperyMaterial;
     constructor(params) {
         this._params = params;
         this._Init();
     }
     _Init() {
         this.characterLoaded = false;
-        // TODO: Should be adjusted to 'planetRadius' (but this is undefined atm)
-        this.startingPos = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3(0, 100, 0);
-        this.inputVelocity = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
-        this.velocityFactor = 1;
-        this.jumpVelocity = 45;
-        this.canJump = false;
+        this._inputVelocity = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
+        this._velocityFactor = 1;
+        this._jumpVelocity = 100;
+        this._canJump = false;
         this._animations = {};
         this._input = new CharacterControllerInput();
         this._stateMachine = new _characterAnimations__WEBPACK_IMPORTED_MODULE_0__.CharacterFSM(new CharacterControllerProxy(this._animations));
@@ -66626,7 +66936,7 @@ class CharacterController {
             fbx.traverse(c => {
                 c.castShadow = true;
             });
-            fbx.position.copy(this.startingPos);
+            fbx.position.copy(this._params.initPosition);
             this._target = fbx;
             this._params.scene.add(this._target);
             const slipperyMaterial = new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Material('slipperyMaterial');
@@ -66637,19 +66947,19 @@ class CharacterController {
             this._params.world.addContactMaterial(slippery_ground_cm);
             // make physics shape
             const halfExtents = new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Vec3(2, 8, 2);
-            this.bodyRadius = halfExtents.y;
-            this.playerBody = new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Body({
-                mass: 50,
+            this._bodyRadius = halfExtents.y;
+            this._playerBody = new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Body({
+                mass: 1,
                 shape: new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Box(halfExtents),
                 allowSleep: false,
                 fixedRotation: true,
                 material: slipperyMaterial,
             });
-            this.playerBody.position.x = fbx.position.x;
-            this.playerBody.position.y = fbx.position.y + this.bodyRadius;
-            this.playerBody.position.z = fbx.position.z;
-            this._params.world.addBody(this.playerBody);
-            this.playerBody.updateMassProperties();
+            this._playerBody.position.x = fbx.position.x;
+            this._playerBody.position.y = fbx.position.y + this._bodyRadius;
+            this._playerBody.position.z = fbx.position.z;
+            this._params.world.addBody(this._playerBody);
+            this._playerBody.updateMassProperties();
             // manage animations
             this._mixer = new three__WEBPACK_IMPORTED_MODULE_1__.AnimationMixer(this._target);
             this._manager = new three__WEBPACK_IMPORTED_MODULE_1__.LoadingManager();
@@ -66683,12 +66993,12 @@ class CharacterController {
                 _OnLoad('runback', a);
             });
             const contactNormal = new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Vec3(); // Normal in the contact, pointing *out* of whatever the player touched
-            const upAxis = new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Vec3(0, 1, 0);
-            this.playerBody.addEventListener('collide', (event) => {
+            const localUp = new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Vec3();
+            this._playerBody.addEventListener('collide', (event) => {
                 const { contact } = event;
                 // contact.bi and contact.bj are the colliding bodies, and contact.ni is the collision normal.
                 // We do not yet know which one is which! Let's check.
-                if (contact.bi.id === this.playerBody.id) {
+                if (contact.bi.id === this._playerBody.id) {
                     // bi is the player body, flip the contact normal
                     contact.ni.negate(contactNormal);
                 }
@@ -66696,16 +67006,16 @@ class CharacterController {
                     // bi is something else. Keep the normal as it is
                     contactNormal.copy(contact.ni);
                 }
-                // If contactNormal.dot(upAxis) is between 0 and 1, we know that the contact normal is somewhat in the up direction.
-                if (contactNormal.dot(upAxis) > 0.5) {
+                localUp.copy(this._playerBody.position).normalize();
+                if (contactNormal.dot(localUp) > 0.5) {
                     // Use a "good" threshold value between 0 and 1 here!
-                    this.canJump = true;
+                    this._canJump = true;
                 }
             });
         });
     }
     get Position() {
-        return this.playerBody.position;
+        return this._playerBody.position;
     }
     get Rotation() {
         if (!this._target)
@@ -66713,11 +67023,11 @@ class CharacterController {
         return this._target.quaternion;
     }
     ResetPlayer() {
-        this._target.position.copy(this.startingPos);
-        this.playerBody.position.x = this._target.position.x;
-        this.playerBody.position.y = this._target.position.y + this.bodyRadius;
-        this.playerBody.position.z = this._target.position.z;
-        this.playerBody.velocity.set(0, 0, 0);
+        this._target.position.copy(this._params.initPosition);
+        this._playerBody.position.x = this._target.position.x;
+        this._playerBody.position.y = this._target.position.y + this._bodyRadius;
+        this._playerBody.position.z = this._target.position.z;
+        this._playerBody.velocity.set(0, 0, 0);
         this._target.rotation.set(0, 0, 0);
     }
     Enable() {
@@ -66727,50 +67037,67 @@ class CharacterController {
         this._input.Disable();
     }
     Update(timeInSeconds) {
-        if (!this._target) {
+        if (!this._target)
             return;
-        }
-        this.inputVelocity.set(0, 0, 0);
-        this._input.canJump = this.canJump;
+        this._inputVelocity.set(0, 0, 0);
+        this._input.canJump = this._canJump;
         this._stateMachine.Update(this._input);
-        const velocity = this.playerBody.velocity;
-        const _Q = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion();
-        const _A = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3(0, 1, 0);
-        const _R = this._target.quaternion.clone();
+        const velocity = this._playerBody.velocity;
+        const position = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3(this._playerBody.position.x, this._playerBody.position.y, this._playerBody.position.z);
+        // Local "up" is from globe center
+        const localUp = position.clone().normalize();
+        // Get current orientation
+        const quaternion = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion(this._playerBody.quaternion.x, this._playerBody.quaternion.y, this._playerBody.quaternion.z, this._playerBody.quaternion.w);
+        const rawForward = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3(0, 0, 1).applyQuaternion(quaternion);
+        // Project forward direction to tangent plane
+        const localForward = rawForward.clone().projectOnPlane(localUp).normalize();
         let acc = 1;
         if (this._input._keys.shift) {
             acc = 3;
         }
+        if (this._input._keys.space && this._canJump) {
+            this._inputVelocity.addScaledVector(localUp, this._jumpVelocity);
+            this._canJump = false;
+            this._input._keys.space = false;
+        }
         if (this._input._keys.forward) {
-            this.inputVelocity.z = acc * this.velocityFactor * timeInSeconds * 100;
+            this._inputVelocity.addScaledVector(localForward, acc * this._velocityFactor * timeInSeconds * 100);
         }
         if (this._input._keys.backward) {
-            this.inputVelocity.z = -acc * this.velocityFactor * timeInSeconds * 100;
+            this._inputVelocity.addScaledVector(localForward, -acc * this._velocityFactor * timeInSeconds * 100);
         }
+        let yaw = 0;
         if (this._input._keys.left) {
-            _Q.setFromAxisAngle(_A, 4.0 * Math.PI * timeInSeconds * 0.25);
-            _R.multiply(_Q);
+            yaw = 4.0 * Math.PI * timeInSeconds * 0.25;
         }
         if (this._input._keys.right) {
-            _Q.setFromAxisAngle(_A, 4.0 * -Math.PI * timeInSeconds * 0.25);
-            _R.multiply(_Q);
+            yaw = -4.0 * Math.PI * timeInSeconds * 0.25;
         }
-        if (this.canJump && this._input._keys.space) {
-            velocity.y = this.jumpVelocity;
-            this._input._keys.space = false;
-            this.canJump = false;
-        }
-        this._target.quaternion.copy(_R);
-        this.inputVelocity.applyQuaternion(_R);
         velocity.x *= 0.8;
+        velocity.y *= 0.8;
         velocity.z *= 0.8;
-        velocity.x += this.inputVelocity.x;
-        velocity.z += this.inputVelocity.z;
-        this._target.position.x = this.playerBody.position.x;
-        this._target.position.y = this.playerBody.position.y - this.bodyRadius;
-        this._target.position.z = this.playerBody.position.z;
-        // reset pos if player falls
-        if (this.playerBody.position.y < -250) {
+        velocity.x += this._inputVelocity.x;
+        velocity.y += this._inputVelocity.y;
+        velocity.z += this._inputVelocity.z;
+        // Rebuild orientation to align with globe and apply yaw
+        const localRight = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3()
+            .crossVectors(localUp, localForward)
+            .normalize();
+        const correctedForward = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3()
+            .crossVectors(localRight, localUp)
+            .normalize();
+        const mat = new three__WEBPACK_IMPORTED_MODULE_1__.Matrix4().makeBasis(localRight, localUp, correctedForward);
+        const baseQuat = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion().setFromRotationMatrix(mat);
+        const yawQuat = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion()
+            .setFromAxisAngle(localUp, yaw)
+            .normalize();
+        const resultingQuat = baseQuat.premultiply(yawQuat);
+        this._playerBody.quaternion.set(resultingQuat.x, resultingQuat.y, resultingQuat.z, resultingQuat.w);
+        this._target.quaternion.set(this._playerBody.quaternion.x, this._playerBody.quaternion.y, this._playerBody.quaternion.z, this._playerBody.quaternion.w);
+        const offset = localUp.clone().multiplyScalar(-this._bodyRadius);
+        const playerPosition = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3(this._playerBody.position.x, this._playerBody.position.y, this._playerBody.position.z).add(offset);
+        this._target.position.copy(playerPosition);
+        if (this._playerBody.position.length() > 250) {
             this.ResetPlayer();
         }
         if (this._mixer) {
@@ -66818,7 +67145,7 @@ class CharacterControllerInput {
                 this._keys.left = true;
                 break;
             // s
-            case 'Keys':
+            case 'KeyS':
                 this._keys.backward = true;
                 break;
             // d
@@ -66869,7 +67196,7 @@ class CharacterControllerInput {
 
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -66877,8 +67204,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   FBXLoader: () => (/* binding */ FBXLoader)
 /* harmony export */ });
 /* harmony import */ var three__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(1);
-/* harmony import */ var _libs_fflate_module_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(5);
-/* harmony import */ var _curves_NURBSCurve_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(6);
+/* harmony import */ var _libs_fflate_module_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(6);
+/* harmony import */ var _curves_NURBSCurve_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(7);
 
 
 
@@ -71152,7 +71479,7 @@ function slice( a, b, from, to ) {
 
 
 /***/ }),
-/* 5 */
+/* 6 */
 /***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -73683,7 +74010,7 @@ function unzipSync(data) {
 
 
 /***/ }),
-/* 6 */
+/* 7 */
 /***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -73691,7 +74018,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   NURBSCurve: () => (/* binding */ NURBSCurve)
 /* harmony export */ });
 /* harmony import */ var three__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(1);
-/* harmony import */ var _curves_NURBSUtils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(7);
+/* harmony import */ var _curves_NURBSUtils_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(8);
 
 
 
@@ -73771,7 +74098,7 @@ class NURBSCurve extends three__WEBPACK_IMPORTED_MODULE_0__.Curve {
 
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -74264,7 +74591,7 @@ function calcSurfacePoint( p, q, U, V, P, u, v, target ) {
 
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -74503,7 +74830,7 @@ class RunBackState extends State {
 
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -74548,7 +74875,7 @@ class ThirdPersonCamera {
 
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -74556,12 +74883,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   Environment: () => (/* binding */ Environment)
 /* harmony export */ });
 /* harmony import */ var three__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(1);
-/* harmony import */ var _objects__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(11);
+/* harmony import */ var _objects__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(12);
 
 
 class Environment {
     _params;
-    _planetRadius;
     _atmosphereRadius;
     _ball;
     _stars;
@@ -74574,7 +74900,6 @@ class Environment {
     }
     _Init() {
         this.environLoaded = false;
-        this._planetRadius = 100;
         this._atmosphereRadius = 100;
         this._createStars();
         this._createMoon();
@@ -74587,7 +74912,7 @@ class Environment {
             scene: this._params.scene,
             world: this._params.world,
             groundMaterial: this._params.groundMaterial,
-            planetRadius: this._planetRadius,
+            planetRadius: this._params.planetRadius,
             atmosphereRadius: this._atmosphereRadius,
         });
     }
@@ -74596,7 +74921,7 @@ class Environment {
             scene: this._params.scene,
             world: this._params.world,
             groundMaterial: this._params.groundMaterial,
-            initPosition: new three__WEBPACK_IMPORTED_MODULE_1__.Vector3(5, this._planetRadius + 1, 15),
+            initPosition: new three__WEBPACK_IMPORTED_MODULE_1__.Vector3(5, this._params.planetRadius + 1, 15),
         });
     }
     _createMoon() {
@@ -74608,7 +74933,7 @@ class Environment {
         this._stars = new _objects__WEBPACK_IMPORTED_MODULE_0__.Stars({
             scene: this._params.scene,
             atmosphereRadius: this._atmosphereRadius,
-            planetRadius: this._planetRadius,
+            planetRadius: this._params.planetRadius,
         });
     }
     _handlePhysicsObjects() {
@@ -74628,7 +74953,7 @@ class Environment {
 
 
 /***/ }),
-/* 11 */
+/* 12 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -74638,10 +74963,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   Planet: () => (/* reexport safe */ _planet__WEBPACK_IMPORTED_MODULE_3__.Planet),
 /* harmony export */   Stars: () => (/* reexport safe */ _stars__WEBPACK_IMPORTED_MODULE_1__.Stars)
 /* harmony export */ });
-/* harmony import */ var _ball__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(12);
-/* harmony import */ var _stars__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(13);
-/* harmony import */ var _moon__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(14);
-/* harmony import */ var _planet__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(15);
+/* harmony import */ var _ball__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(13);
+/* harmony import */ var _stars__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(14);
+/* harmony import */ var _moon__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(15);
+/* harmony import */ var _planet__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(16);
 
 
 
@@ -74649,7 +74974,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /***/ }),
-/* 12 */
+/* 13 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -74678,19 +75003,27 @@ class Ball {
         this._ball.receiveShadow = true;
         this._ball.position.copy(this._params.initPosition);
         this._params.scene.add(this._ball);
+        const ballPhysMaterial = new cannon_es__WEBPACK_IMPORTED_MODULE_1__.Material('ballMaterial');
         this._ballBody = new cannon_es__WEBPACK_IMPORTED_MODULE_1__.Body({
-            mass: 2,
+            mass: 0.5,
             shape: new cannon_es__WEBPACK_IMPORTED_MODULE_1__.Sphere(radius),
-            material: this._params.groundMaterial,
+            material: ballPhysMaterial,
+            linearDamping: 0.5,
+            angularDamping: 0.3,
         });
         this._ballBody.position = new cannon_es__WEBPACK_IMPORTED_MODULE_1__.Vec3(this._ball.position.x, this._ball.position.y, this._ball.position.z);
+        const contactMaterial = new cannon_es__WEBPACK_IMPORTED_MODULE_1__.ContactMaterial(ballPhysMaterial, this._params.groundMaterial, {
+            friction: 0.4,
+            restitution: 0.2,
+        });
+        this._params.world.addContactMaterial(contactMaterial);
         this._params.world.addBody(this._ballBody);
     }
     updatePosition() {
         if (this._ball) {
             this._ball.position.set(this._ballBody.position.x, this._ballBody.position.y, this._ballBody.position.z);
             this._ball.quaternion.set(this._ballBody.quaternion.x, this._ballBody.quaternion.y, this._ballBody.quaternion.z, this._ballBody.quaternion.w);
-            if (this._ballBody.position.y < -250) {
+            if (this._ballBody.position.length() > 250) {
                 this._reset();
             }
         }
@@ -74706,7 +75039,7 @@ class Ball {
 
 
 /***/ }),
-/* 13 */
+/* 14 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -74773,7 +75106,7 @@ class Stars {
 
 
 /***/ }),
-/* 14 */
+/* 15 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -74810,7 +75143,7 @@ class Moon {
 
 
 /***/ }),
-/* 15 */
+/* 16 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -74911,9 +75244,11 @@ var __webpack_exports__ = {};
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var three__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(1);
 /* harmony import */ var cannon_es__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(2);
-/* harmony import */ var _character__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3);
-/* harmony import */ var _camera__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(9);
-/* harmony import */ var _environment__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(10);
+/* harmony import */ var cannon_es_debugger__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(3);
+/* harmony import */ var _character__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(4);
+/* harmony import */ var _camera__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(10);
+/* harmony import */ var _environment__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(11);
+
 
 
 
@@ -74925,21 +75260,24 @@ class World {
     _camera;
     _scene;
     _world;
-    gravity;
     _environ;
     _previousRAF;
     _controls;
     _thirdPersonCamera;
-    groundMaterial;
+    _groundMaterial;
     _score;
     _scorediv;
     _initialMenu;
-    fireTexture;
+    _fireTexture;
+    _planetRadius;
+    _debug;
+    _cannonDebugRenderer;
     constructor() {
         this._Init();
     }
     _Init() {
-        this.fireTexture = new three__WEBPACK_IMPORTED_MODULE_3__.TextureLoader().load('./resources/fire.png');
+        this._debug = false;
+        this._fireTexture = new three__WEBPACK_IMPORTED_MODULE_3__.TextureLoader().load('./resources/fire.png');
         this._initialMenu = true;
         this._scorediv = document.getElementById('score');
         this._started = false;
@@ -74976,25 +75314,38 @@ class World {
         dirLight.shadow.camera.top = 100;
         dirLight.shadow.camera.bottom = -100;
         this._scene.add(dirLight);
-        const ambLight = new three__WEBPACK_IMPORTED_MODULE_3__.AmbientLight(0x202020, 2);
+        const ambLight = new three__WEBPACK_IMPORTED_MODULE_3__.AmbientLight(0x202020, 20);
         this._scene.add(ambLight);
         // initialise cannon world
         this._world = new cannon_es__WEBPACK_IMPORTED_MODULE_4__.World();
-        this.gravity = 100;
-        this._world.gravity.set(0, -100, 0);
-        // this.cannonDebugRenderer = new cannonDebugger(this._scene, this._world.bodies);
-        this.groundMaterial = new cannon_es__WEBPACK_IMPORTED_MODULE_4__.Material('groundMaterial');
+        this._cannonDebugRenderer = this._debug
+            ? (0,cannon_es_debugger__WEBPACK_IMPORTED_MODULE_5__["default"])(this._scene, this._world)
+            : undefined;
+        this._world.gravity.set(0, -1, 0);
+        this._world.addEventListener('postStep', () => {
+            this._world.bodies.forEach(body => {
+                const v = new cannon_es__WEBPACK_IMPORTED_MODULE_4__.Vec3();
+                body.position.negate(v);
+                v.normalize();
+                v.scale(150, body.force);
+                body.applyLocalForce(v);
+                body.force.y += body.mass; //cancel out world gravity
+            });
+        });
+        this._groundMaterial = new cannon_es__WEBPACK_IMPORTED_MODULE_4__.Material('groundMaterial');
         // Adjust constraint equation parameters for ground/ground contact
-        const ground_ground_cm = new cannon_es__WEBPACK_IMPORTED_MODULE_4__.ContactMaterial(this.groundMaterial, this.groundMaterial, {
+        const ground_ground_cm = new cannon_es__WEBPACK_IMPORTED_MODULE_4__.ContactMaterial(this._groundMaterial, this._groundMaterial, {
             friction: 0.4,
             restitution: 0.3,
         });
         this._world.addContactMaterial(ground_ground_cm);
+        this._planetRadius = 100;
         // create eveything in scene/world
         this._environ = new _environment__WEBPACK_IMPORTED_MODULE_2__.Environment({
             scene: this._scene,
             world: this._world,
-            groundMaterial: this.groundMaterial,
+            groundMaterial: this._groundMaterial,
+            planetRadius: this._planetRadius,
         });
         this._previousRAF = 0;
         this._LoadAnimatedModel();
@@ -75020,7 +75371,8 @@ class World {
             camera: this._camera,
             scene: this._scene,
             world: this._world,
-            groundMaterial: this.groundMaterial,
+            groundMaterial: this._groundMaterial,
+            initPosition: new three__WEBPACK_IMPORTED_MODULE_3__.Vector3(0, this._planetRadius, 0),
         });
     }
     _animateMenu() {
@@ -75062,6 +75414,9 @@ class World {
             this._animate();
             this._environ.animate();
             this._environ._handlePhysicsObjects();
+            if (this._debug) {
+                this._cannonDebugRenderer?.update();
+            }
             this._threejs.render(this._scene, this._camera);
             this._Step(t - this._previousRAF);
             this._previousRAF = t;

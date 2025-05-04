@@ -2,7 +2,8 @@
   "dependencies": {
     "cannon-es": "^0.20.0",
     "three": "^0.160.0",
-    "three-to-cannon": "^5.0.2"
+    "three-to-cannon": "^5.0.2",
+    "cannon-es-debugger": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.2",

@@ -6,8 +6,8 @@ export declare class Environment {
         scene: THREE.Scene;
         world: CANNON.World;
         groundMaterial: CANNON.Material;
+        planetRadius: number;
     };
-    _planetRadius: number;
     _atmosphereRadius: number;
     _ball: Ball;
     _stars: Stars;
@@ -18,6 +18,7 @@ export declare class Environment {
         scene: THREE.Scene;
         world: CANNON.World;
         groundMaterial: CANNON.Material;
+        planetRadius: number;
     });
     _Init(): void;
     _createPlanet(): void;

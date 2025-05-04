@@ -27,27 +27,29 @@ export class CharacterController {
     scene: THREE.Scene;
     world: CANNON.World;
     groundMaterial: CANNON.Material;
+    initPosition: THREE.Vector3;
   };
-  startingPos: THREE.Vector3;
-  canJump: boolean;
+  _canJump: boolean;
   _animations: Animations;
   _input: CharacterControllerInput;
   _stateMachine: CharacterFSM;
   _target: THREE.Group;
-  bodyRadius: number;
-  playerBody: CANNON.Body;
+  _bodyRadius: number;
+  _playerBody: CANNON.Body;
   _mixer: THREE.AnimationMixer;
   _manager: THREE.LoadingManager;
-  inputVelocity: THREE.Vector3;
-  velocityFactor: number;
-  jumpVelocity: number;
+  _inputVelocity: THREE.Vector3;
+  _forwardVelocity: number;
+  _velocityFactor: number;
+  _jumpVelocity: number;
   characterLoaded: boolean;
-  slipperyMaterial: CANNON.Material;
+  _slipperyMaterial: CANNON.Material;
   constructor(params: {
     camera: THREE.Camera;
     scene: THREE.Scene;
     world: CANNON.World;
     groundMaterial: CANNON.Material;
+    initPosition: THREE.Vector3;
   }) {
     this._params = params;
     this._Init();
@@ -55,13 +57,11 @@ export class CharacterController {
 
   _Init() {
     this.characterLoaded = false;
-    // TODO: Should be adjusted to 'planetRadius' (but this is undefined atm)
-    this.startingPos = new THREE.Vector3(0, 100, 0);
 
-    this.inputVelocity = new THREE.Vector3();
-    this.velocityFactor = 1;
-    this.jumpVelocity = 45;
-    this.canJump = false;
+    this._inputVelocity = new THREE.Vector3();
+    this._velocityFactor = 1;
+    this._jumpVelocity = 100;
+    this._canJump = false;
 
     this._animations = {};
     this._input = new CharacterControllerInput();
@@ -80,7 +80,7 @@ export class CharacterController {
       fbx.traverse(c => {
         c.castShadow = true;
       });
-      fbx.position.copy(this.startingPos);
+      fbx.position.copy(this._params.initPosition);
 
       this._target = fbx;
       this._params.scene.add(this._target);
@@ -98,20 +98,20 @@ export class CharacterController {
 
       // make physics shape
       const halfExtents = new CANNON.Vec3(2, 8, 2);
-      this.bodyRadius = halfExtents.y;
-      this.playerBody = new CANNON.Body({
-        mass: 50,
+      this._bodyRadius = halfExtents.y;
+      this._playerBody = new CANNON.Body({
+        mass: 1,
         shape: new CANNON.Box(halfExtents),
         allowSleep: false,
         fixedRotation: true,
         material: slipperyMaterial,
       });
-      this.playerBody.position.x = fbx.position.x;
-      this.playerBody.position.y = fbx.position.y + this.bodyRadius;
-      this.playerBody.position.z = fbx.position.z;
-      this._params.world.addBody(this.playerBody);
+      this._playerBody.position.x = fbx.position.x;
+      this._playerBody.position.y = fbx.position.y + this._bodyRadius;
+      this._playerBody.position.z = fbx.position.z;
+      this._params.world.addBody(this._playerBody);
 
-      this.playerBody.updateMassProperties();
+      this._playerBody.updateMassProperties();
 
       // manage animations
       this._mixer = new THREE.AnimationMixer(this._target);
@@ -151,15 +151,15 @@ export class CharacterController {
       });
 
       const contactNormal = new CANNON.Vec3(); // Normal in the contact, pointing *out* of whatever the player touched
-      const upAxis = new CANNON.Vec3(0, 1, 0);
-      this.playerBody.addEventListener(
+      const localUp = new CANNON.Vec3();
+      this._playerBody.addEventListener(
         'collide',
         (event: {contact: CANNON.ContactEquation}) => {
           const {contact} = event;
 
           // contact.bi and contact.bj are the colliding bodies, and contact.ni is the collision normal.
           // We do not yet know which one is which! Let's check.
-          if (contact.bi.id === this.playerBody.id) {
+          if (contact.bi.id === this._playerBody.id) {
             // bi is the player body, flip the contact normal
             contact.ni.negate(contactNormal);
           } else {
@@ -167,10 +167,10 @@ export class CharacterController {
             contactNormal.copy(contact.ni);
           }
 
-          // If contactNormal.dot(upAxis) is between 0 and 1, we know that the contact normal is somewhat in the up direction.
-          if (contactNormal.dot(upAxis) > 0.5) {
+          localUp.copy(this._playerBody.position).normalize();
+          if (contactNormal.dot(localUp) > 0.5) {
             // Use a "good" threshold value between 0 and 1 here!
-            this.canJump = true;
+            this._canJump = true;
           }
         },
       );
@@ -178,7 +178,7 @@ export class CharacterController {
   }
 
   get Position() {
-    return this.playerBody.position;
+    return this._playerBody.position;
   }
 
   get Rotation() {
@@ -187,11 +187,11 @@ export class CharacterController {
   }
 
   ResetPlayer() {
-    this._target.position.copy(this.startingPos);
-    this.playerBody.position.x = this._target.position.x;
-    this.playerBody.position.y = this._target.position.y + this.bodyRadius;
-    this.playerBody.position.z = this._target.position.z;
-    this.playerBody.velocity.set(0, 0, 0);
+    this._target.position.copy(this._params.initPosition);
+    this._playerBody.position.x = this._target.position.x;
+    this._playerBody.position.y = this._target.position.y + this._bodyRadius;
+    this._playerBody.position.z = this._target.position.z;
+    this._playerBody.velocity.set(0, 0, 0);
     this._target.rotation.set(0, 0, 0);
   }
 
@@ -204,60 +204,120 @@ export class CharacterController {
   }
 
   Update(timeInSeconds: number) {
-    if (!this._target) {
-      return;
-    }
+    if (!this._target) return;
 
-    this.inputVelocity.set(0, 0, 0);
-    this._input.canJump = this.canJump;
+    this._inputVelocity.set(0, 0, 0);
+    this._input.canJump = this._canJump;
     this._stateMachine.Update(this._input);
 
-    const velocity = this.playerBody.velocity;
+    const velocity = this._playerBody.velocity;
 
-    const _Q = new THREE.Quaternion();
-    const _A = new THREE.Vector3(0, 1, 0);
-    const _R = this._target.quaternion.clone();
+    const position = new THREE.Vector3(
+      this._playerBody.position.x,
+      this._playerBody.position.y,
+      this._playerBody.position.z,
+    );
+
+    // Local "up" is from globe center
+    const localUp = position.clone().normalize();
+
+    // Get current orientation
+    const quaternion = new THREE.Quaternion(
+      this._playerBody.quaternion.x,
+      this._playerBody.quaternion.y,
+      this._playerBody.quaternion.z,
+      this._playerBody.quaternion.w,
+    );
+
+    const rawForward = new THREE.Vector3(0, 0, 1).applyQuaternion(quaternion);
+
+    // Project forward direction to tangent plane
+    const localForward = rawForward.clone().projectOnPlane(localUp).normalize();
 
     let acc = 1;
     if (this._input._keys.shift) {
       acc = 3;
     }
-    if (this._input._keys.forward) {
-      this.inputVelocity.z = acc * this.velocityFactor * timeInSeconds * 100;
-    }
-    if (this._input._keys.backward) {
-      this.inputVelocity.z = -acc * this.velocityFactor * timeInSeconds * 100;
-    }
-    if (this._input._keys.left) {
-      _Q.setFromAxisAngle(_A, 4.0 * Math.PI * timeInSeconds * 0.25);
-      _R.multiply(_Q);
-    }
-    if (this._input._keys.right) {
-      _Q.setFromAxisAngle(_A, 4.0 * -Math.PI * timeInSeconds * 0.25);
-      _R.multiply(_Q);
-    }
 
-    if (this.canJump && this._input._keys.space) {
-      velocity.y = this.jumpVelocity;
+    if (this._input._keys.space && this._canJump) {
+      this._inputVelocity.addScaledVector(localUp, this._jumpVelocity);
+      this._canJump = false;
       this._input._keys.space = false;
-      this.canJump = false;
     }
 
-    this._target.quaternion.copy(_R);
-    this.inputVelocity.applyQuaternion(_R);
+    if (this._input._keys.forward) {
+      this._inputVelocity.addScaledVector(
+        localForward,
+        acc * this._velocityFactor * timeInSeconds * 100,
+      );
+    }
+
+    if (this._input._keys.backward) {
+      this._inputVelocity.addScaledVector(
+        localForward,
+        -acc * this._velocityFactor * timeInSeconds * 100,
+      );
+    }
+
+    let yaw = 0;
+    if (this._input._keys.left) {
+      yaw = 4.0 * Math.PI * timeInSeconds * 0.25;
+    }
+
+    if (this._input._keys.right) {
+      yaw = -4.0 * Math.PI * timeInSeconds * 0.25;
+    }
 
     velocity.x *= 0.8;
+    velocity.y *= 0.8;
     velocity.z *= 0.8;
 
-    velocity.x += this.inputVelocity.x;
-    velocity.z += this.inputVelocity.z;
+    velocity.x += this._inputVelocity.x;
+    velocity.y += this._inputVelocity.y;
+    velocity.z += this._inputVelocity.z;
 
-    this._target.position.x = this.playerBody.position.x;
-    this._target.position.y = this.playerBody.position.y - this.bodyRadius;
-    this._target.position.z = this.playerBody.position.z;
+    // Rebuild orientation to align with globe and apply yaw
+    const localRight = new THREE.Vector3()
+      .crossVectors(localUp, localForward)
+      .normalize();
+    const correctedForward = new THREE.Vector3()
+      .crossVectors(localRight, localUp)
+      .normalize();
 
-    // reset pos if player falls
-    if (this.playerBody.position.y < -250) {
+    const mat = new THREE.Matrix4().makeBasis(
+      localRight,
+      localUp,
+      correctedForward,
+    );
+
+    const baseQuat = new THREE.Quaternion().setFromRotationMatrix(mat);
+    const yawQuat = new THREE.Quaternion()
+      .setFromAxisAngle(localUp, yaw)
+      .normalize();
+    const resultingQuat = baseQuat.premultiply(yawQuat);
+
+    this._playerBody.quaternion.set(
+      resultingQuat.x,
+      resultingQuat.y,
+      resultingQuat.z,
+      resultingQuat.w,
+    );
+    this._target.quaternion.set(
+      this._playerBody.quaternion.x,
+      this._playerBody.quaternion.y,
+      this._playerBody.quaternion.z,
+      this._playerBody.quaternion.w,
+    );
+
+    const offset = localUp.clone().multiplyScalar(-this._bodyRadius);
+    const playerPosition = new THREE.Vector3(
+      this._playerBody.position.x,
+      this._playerBody.position.y,
+      this._playerBody.position.z,
+    ).add(offset);
+    this._target.position.copy(playerPosition);
+
+    if (this._playerBody.position.length() > 250) {
       this.ResetPlayer();
     }
 
@@ -317,7 +377,7 @@ export class CharacterControllerInput {
         this._keys.left = true;
         break;
       // s
-      case 'Keys':
+      case 'KeyS':
         this._keys.backward = true;
         break;
       // d

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import CannonDebugger from 'cannon-es-debugger';
 
 import {CharacterController} from './character';
 import {ThirdPersonCamera} from './camera';
@@ -11,22 +12,25 @@ class World {
   _camera: THREE.PerspectiveCamera;
   _scene: THREE.Scene;
   _world: CANNON.World;
-  gravity: number;
   _environ: Environment;
   _previousRAF: number;
   _controls: CharacterController;
   _thirdPersonCamera: ThirdPersonCamera;
-  groundMaterial: CANNON.Material;
+  _groundMaterial: CANNON.Material;
   _score: number;
   _scorediv: HTMLElement;
   _initialMenu: boolean;
-  fireTexture: THREE.Texture;
+  _fireTexture: THREE.Texture;
+  _planetRadius: number;
+  _debug: boolean;
+  _cannonDebugRenderer?: ReturnType<typeof CannonDebugger>;
   constructor() {
     this._Init();
   }
 
   _Init() {
-    this.fireTexture = new THREE.TextureLoader().load('./resources/fire.png');
+    this._debug = false;
+    this._fireTexture = new THREE.TextureLoader().load('./resources/fire.png');
 
     this._initialMenu = true;
     this._scorediv = document.getElementById('score')!;
@@ -75,21 +79,34 @@ class World {
     dirLight.shadow.camera.bottom = -100;
     this._scene.add(dirLight);
 
-    const ambLight = new THREE.AmbientLight(0x202020, 2);
+    const ambLight = new THREE.AmbientLight(0x202020, 20);
     this._scene.add(ambLight);
 
     // initialise cannon world
     this._world = new CANNON.World();
-    this.gravity = 100;
-    this._world.gravity.set(0, -100, 0);
-    // this.cannonDebugRenderer = new cannonDebugger(this._scene, this._world.bodies);
 
-    this.groundMaterial = new CANNON.Material('groundMaterial');
+    this._cannonDebugRenderer = this._debug
+      ? CannonDebugger(this._scene, this._world)
+      : undefined;
+
+    this._world.gravity.set(0, -1, 0);
+    this._world.addEventListener('postStep', () => {
+      this._world.bodies.forEach(body => {
+        const v = new CANNON.Vec3();
+        body.position.negate(v);
+        v.normalize();
+        v.scale(150, body.force);
+        body.applyLocalForce(v);
+        body.force.y += body.mass; //cancel out world gravity
+      });
+    });
+
+    this._groundMaterial = new CANNON.Material('groundMaterial');
 
     // Adjust constraint equation parameters for ground/ground contact
     const ground_ground_cm = new CANNON.ContactMaterial(
-      this.groundMaterial,
-      this.groundMaterial,
+      this._groundMaterial,
+      this._groundMaterial,
       {
         friction: 0.4,
         restitution: 0.3,
@@ -97,11 +114,13 @@ class World {
     );
     this._world.addContactMaterial(ground_ground_cm);
 
+    this._planetRadius = 100;
     // create eveything in scene/world
     this._environ = new Environment({
       scene: this._scene,
       world: this._world,
-      groundMaterial: this.groundMaterial,
+      groundMaterial: this._groundMaterial,
+      planetRadius: this._planetRadius,
     });
 
     this._previousRAF = 0;
@@ -134,7 +153,8 @@ class World {
       camera: this._camera,
       scene: this._scene,
       world: this._world,
-      groundMaterial: this.groundMaterial,
+      groundMaterial: this._groundMaterial,
+      initPosition: new THREE.Vector3(0, this._planetRadius, 0),
     });
   }
 
@@ -181,6 +201,9 @@ class World {
       this._environ.animate();
       this._environ._handlePhysicsObjects();
 
+      if (this._debug) {
+        this._cannonDebugRenderer?.update();
+      }
       this._threejs.render(this._scene, this._camera);
       this._Step(t - this._previousRAF);
       this._previousRAF = t;

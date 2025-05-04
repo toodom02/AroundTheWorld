@@ -7,8 +7,8 @@ export class Environment {
     scene: THREE.Scene;
     world: CANNON.World;
     groundMaterial: CANNON.Material;
+    planetRadius: number;
   };
-  _planetRadius: number;
   _atmosphereRadius: number;
   _ball: Ball;
   _stars: Stars;
@@ -19,6 +19,7 @@ export class Environment {
     scene: THREE.Scene;
     world: CANNON.World;
     groundMaterial: CANNON.Material;
+    planetRadius: number;
   }) {
     this._params = params;
     this._Init();
@@ -26,7 +27,6 @@ export class Environment {
 
   _Init() {
     this.environLoaded = false;
-    this._planetRadius = 100;
     this._atmosphereRadius = 100;
     this._createStars();
     this._createMoon();
@@ -40,7 +40,7 @@ export class Environment {
       scene: this._params.scene,
       world: this._params.world,
       groundMaterial: this._params.groundMaterial,
-      planetRadius: this._planetRadius,
+      planetRadius: this._params.planetRadius,
       atmosphereRadius: this._atmosphereRadius,
     });
   }
@@ -50,7 +50,7 @@ export class Environment {
       scene: this._params.scene,
       world: this._params.world,
       groundMaterial: this._params.groundMaterial,
-      initPosition: new THREE.Vector3(5, this._planetRadius + 1, 15),
+      initPosition: new THREE.Vector3(5, this._params.planetRadius + 1, 15),
     });
   }
 
@@ -64,7 +64,7 @@ export class Environment {
     this._stars = new Stars({
       scene: this._params.scene,
       atmosphereRadius: this._atmosphereRadius,
-      planetRadius: this._planetRadius,
+      planetRadius: this._params.planetRadius,
     });
   }
 
