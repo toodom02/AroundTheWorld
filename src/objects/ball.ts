@@ -33,12 +33,10 @@ export class Ball {
     this._ball.position.copy(this._params.initPosition);
     this._params.scene.add(this._ball);
 
-    const ballPhysMaterial = new CANNON.Material('ballMaterial');
-
     this._ballBody = new CANNON.Body({
       mass: 0.5,
       shape: new CANNON.Sphere(radius),
-      material: ballPhysMaterial,
+      material: this._params.groundMaterial,
       linearDamping: 0.5,
       angularDamping: 0.3,
     });
@@ -47,16 +45,6 @@ export class Ball {
       this._ball.position.y,
       this._ball.position.z,
     );
-
-    const contactMaterial = new CANNON.ContactMaterial(
-      ballPhysMaterial,
-      this._params.groundMaterial,
-      {
-        friction: 0.4,
-        restitution: 0.2,
-      },
-    );
-    this._params.world.addContactMaterial(contactMaterial);
 
     this._params.world.addBody(this._ballBody);
   }

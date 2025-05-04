@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader';
+import {ShapeType, threeToCannon} from 'three-to-cannon';
 
 export class Planet {
   _params: {
@@ -23,29 +25,37 @@ export class Planet {
   }
 
   _Init() {
-    const planetGeometry = new THREE.SphereGeometry(
-      this._params.planetRadius,
-      64,
-      64,
-    );
-    const planetMaterial = new THREE.MeshPhongMaterial({color: 0x636b2f});
-    this._planet = new THREE.Mesh(planetGeometry, planetMaterial);
-    this._planet.castShadow = true;
-    this._planet.receiveShadow = true;
-    this._planet.position.set(0, 0, 0);
-    this._params.scene.add(this._planet);
+    this._LoadModels();
+  }
 
-    this._planetBody = new CANNON.Body({
-      shape: new CANNON.Sphere(this._params.planetRadius),
-      material: this._params.groundMaterial,
-      type: 2,
+  _LoadModels() {
+    const loader = new FBXLoader();
+    loader.setPath('./resources/models/');
+    loader.load('planet.fbx', fbx => {
+      fbx.traverse(c => {
+        c.castShadow = true;
+        c.receiveShadow = true;
+      });
+      fbx.position.set(0, 0, 0);
+      fbx.scale.set(50, 50, 50);
+      fbx.updateMatrixWorld(true);
+      this._params.scene.add(fbx);
+
+      const cannonConvert = threeToCannon(fbx, {
+        type: ShapeType.MESH,
+      });
+      const {shape} = cannonConvert ?? {};
+      this._planetBody = new CANNON.Body({
+        mass: 0,
+        shape: shape,
+        material: this._params.groundMaterial,
+        position: new CANNON.Vec3(
+          fbx.position.x,
+          fbx.position.y,
+          fbx.position.z,
+        ),
+      });
+      this._params.world.addBody(this._planetBody);
     });
-    this._planetBody.position = new CANNON.Vec3(
-      this._planet.position.x,
-      this._planet.position.y,
-      this._planet.position.z,
-    );
-
-    this._params.world.addBody(this._planetBody);
   }
 }

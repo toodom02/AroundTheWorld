@@ -18,4 +18,5 @@ export declare class Planet {
         atmosphereRadius: number;
     });
     _Init(): void;
+    _LoadModels(): void;
 }

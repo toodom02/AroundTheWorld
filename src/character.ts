@@ -85,27 +85,30 @@ export class CharacterController {
       this._target = fbx;
       this._params.scene.add(this._target);
 
-      const slipperyMaterial = new CANNON.Material('slipperyMaterial');
-      const slippery_ground_cm = new CANNON.ContactMaterial(
-        this._params.groundMaterial,
-        slipperyMaterial,
-        {
-          friction: 0,
-          restitution: 0.1,
-        },
-      );
-      this._params.world.addContactMaterial(slippery_ground_cm);
-
       // make physics shape
-      const halfExtents = new CANNON.Vec3(2, 8, 2);
-      this._bodyRadius = halfExtents.y;
+      const halfHeight = 8;
+      const radius = 2;
+      this._bodyRadius = halfHeight;
+
       this._playerBody = new CANNON.Body({
         mass: 1,
-        shape: new CANNON.Box(halfExtents),
         allowSleep: false,
         fixedRotation: true,
-        material: slipperyMaterial,
+        material: this._params.groundMaterial,
       });
+
+      // estimate shape by spheres (to support collision with trimesh)
+      const offsets = [
+        new CANNON.Vec3(0, -halfHeight + radius, 0),
+        new CANNON.Vec3(0, 0, 0),
+        new CANNON.Vec3(0, halfHeight - radius, 0),
+      ];
+
+      for (const offset of offsets) {
+        const sphereShape = new CANNON.Sphere(radius);
+        this._playerBody.addShape(sphereShape, offset);
+      }
+
       this._playerBody.position.x = fbx.position.x;
       this._playerBody.position.y = fbx.position.y + this._bodyRadius;
       this._playerBody.position.z = fbx.position.z;
