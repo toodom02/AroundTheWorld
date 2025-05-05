@@ -66898,6 +66898,7 @@ class CharacterControllerProxy {
 }
 class CharacterController {
     _params;
+    characterLoaded;
     _canJump;
     _animations;
     _input;
@@ -66911,8 +66912,16 @@ class CharacterController {
     _forwardVelocity;
     _velocityFactor;
     _jumpVelocity;
-    characterLoaded;
-    _slipperyMaterial;
+    _localUp;
+    _localForward;
+    _localRight;
+    _correctedForward;
+    _quaternion;
+    _matrix;
+    _baseQuat;
+    _yawQuat;
+    _offset;
+    _playerPosition;
     constructor(params) {
         this._params = params;
         this._Init();
@@ -66920,6 +66929,16 @@ class CharacterController {
     _Init() {
         this.characterLoaded = false;
         this._inputVelocity = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
+        this._localUp = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
+        this._localForward = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
+        this._localRight = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
+        this._correctedForward = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
+        this._quaternion = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion();
+        this._matrix = new three__WEBPACK_IMPORTED_MODULE_1__.Matrix4();
+        this._baseQuat = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion();
+        this._yawQuat = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion();
+        this._offset = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
+        this._playerPosition = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
         this._velocityFactor = 1;
         this._jumpVelocity = 100;
         this._canJump = false;
@@ -67046,29 +67065,32 @@ class CharacterController {
         this._inputVelocity.set(0, 0, 0);
         this._input.canJump = this._canJump;
         this._stateMachine.Update(this._input);
-        const velocity = this._playerBody.velocity;
-        const position = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3(this._playerBody.position.x, this._playerBody.position.y, this._playerBody.position.z);
         // Local "up" is from globe center
-        const localUp = position.clone().normalize();
+        this._localUp
+            .set(this._playerBody.position.x, this._playerBody.position.y, this._playerBody.position.z)
+            .normalize();
         // Get current orientation
-        const quaternion = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion(this._playerBody.quaternion.x, this._playerBody.quaternion.y, this._playerBody.quaternion.z, this._playerBody.quaternion.w);
-        const rawForward = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3(0, 0, 1).applyQuaternion(quaternion);
+        this._quaternion.set(this._playerBody.quaternion.x, this._playerBody.quaternion.y, this._playerBody.quaternion.z, this._playerBody.quaternion.w);
         // Project forward direction to tangent plane
-        const localForward = rawForward.clone().projectOnPlane(localUp).normalize();
+        this._localForward
+            .set(0, 0, 1)
+            .applyQuaternion(this._quaternion)
+            .projectOnPlane(this._localUp)
+            .normalize();
         let acc = 1;
         if (this._input._keys.shift) {
             acc = 3;
         }
         if (this._input._keys.space && this._canJump) {
-            this._inputVelocity.addScaledVector(localUp, this._jumpVelocity);
+            this._inputVelocity.addScaledVector(this._localUp, this._jumpVelocity);
             this._canJump = false;
             this._input._keys.space = false;
         }
         if (this._input._keys.forward) {
-            this._inputVelocity.addScaledVector(localForward, acc * this._velocityFactor * timeInSeconds * 100);
+            this._inputVelocity.addScaledVector(this._localForward, acc * this._velocityFactor * timeInSeconds * 100);
         }
         if (this._input._keys.backward) {
-            this._inputVelocity.addScaledVector(localForward, -acc * this._velocityFactor * timeInSeconds * 100);
+            this._inputVelocity.addScaledVector(this._localForward, -acc * this._velocityFactor * timeInSeconds * 100);
         }
         let yaw = 0;
         if (this._input._keys.left) {
@@ -67077,30 +67099,30 @@ class CharacterController {
         if (this._input._keys.right) {
             yaw = -4.0 * Math.PI * timeInSeconds * 0.25;
         }
-        velocity.x *= 0.8;
-        velocity.y *= 0.8;
-        velocity.z *= 0.8;
-        velocity.x += this._inputVelocity.x;
-        velocity.y += this._inputVelocity.y;
-        velocity.z += this._inputVelocity.z;
+        this._playerBody.velocity.x *= 0.8;
+        this._playerBody.velocity.y *= 0.8;
+        this._playerBody.velocity.z *= 0.8;
+        this._playerBody.velocity.x += this._inputVelocity.x;
+        this._playerBody.velocity.y += this._inputVelocity.y;
+        this._playerBody.velocity.z += this._inputVelocity.z;
         // Rebuild orientation to align with globe and apply yaw
-        const localRight = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3()
-            .crossVectors(localUp, localForward)
+        this._localRight
+            .crossVectors(this._localUp, this._localForward)
             .normalize();
-        const correctedForward = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3()
-            .crossVectors(localRight, localUp)
+        this._correctedForward
+            .crossVectors(this._localRight, this._localUp)
             .normalize();
-        const mat = new three__WEBPACK_IMPORTED_MODULE_1__.Matrix4().makeBasis(localRight, localUp, correctedForward);
-        const baseQuat = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion().setFromRotationMatrix(mat);
-        const yawQuat = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion()
-            .setFromAxisAngle(localUp, yaw)
-            .normalize();
-        const resultingQuat = baseQuat.premultiply(yawQuat);
+        this._matrix.makeBasis(this._localRight, this._localUp, this._correctedForward);
+        this._baseQuat.setFromRotationMatrix(this._matrix);
+        this._yawQuat.setFromAxisAngle(this._localUp, yaw).normalize();
+        const resultingQuat = this._baseQuat.premultiply(this._yawQuat);
         this._playerBody.quaternion.set(resultingQuat.x, resultingQuat.y, resultingQuat.z, resultingQuat.w);
         this._target.quaternion.set(this._playerBody.quaternion.x, this._playerBody.quaternion.y, this._playerBody.quaternion.z, this._playerBody.quaternion.w);
-        const offset = localUp.clone().multiplyScalar(-this._bodyRadius);
-        const playerPosition = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3(this._playerBody.position.x, this._playerBody.position.y, this._playerBody.position.z).add(offset);
-        this._target.position.copy(playerPosition);
+        this._offset.copy(this._localUp).multiplyScalar(-this._bodyRadius);
+        this._playerPosition
+            .set(this._playerBody.position.x, this._playerBody.position.y, this._playerBody.position.z)
+            .add(this._offset);
+        this._target.position.copy(this._playerPosition);
         if (this._playerBody.position.length() > 250) {
             this.ResetPlayer();
         }

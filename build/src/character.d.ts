@@ -19,6 +19,7 @@ export declare class CharacterController {
         groundMaterial: CANNON.Material;
         initPosition: THREE.Vector3;
     };
+    characterLoaded: boolean;
     _canJump: boolean;
     _animations: Animations;
     _input: CharacterControllerInput;
@@ -32,8 +33,16 @@ export declare class CharacterController {
     _forwardVelocity: number;
     _velocityFactor: number;
     _jumpVelocity: number;
-    characterLoaded: boolean;
-    _slipperyMaterial: CANNON.Material;
+    _localUp: THREE.Vector3;
+    _localForward: THREE.Vector3;
+    _localRight: THREE.Vector3;
+    _correctedForward: THREE.Vector3;
+    _quaternion: THREE.Quaternion;
+    _matrix: THREE.Matrix4;
+    _baseQuat: THREE.Quaternion;
+    _yawQuat: THREE.Quaternion;
+    _offset: THREE.Vector3;
+    _playerPosition: THREE.Vector3;
     constructor(params: {
         camera: THREE.Camera;
         scene: THREE.Scene;

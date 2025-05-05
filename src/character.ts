@@ -29,6 +29,7 @@ export class CharacterController {
     groundMaterial: CANNON.Material;
     initPosition: THREE.Vector3;
   };
+  characterLoaded: boolean;
   _canJump: boolean;
   _animations: Animations;
   _input: CharacterControllerInput;
@@ -42,8 +43,17 @@ export class CharacterController {
   _forwardVelocity: number;
   _velocityFactor: number;
   _jumpVelocity: number;
-  characterLoaded: boolean;
-  _slipperyMaterial: CANNON.Material;
+  _localUp: THREE.Vector3;
+  _localForward: THREE.Vector3;
+  _localRight: THREE.Vector3;
+  _correctedForward: THREE.Vector3;
+  _quaternion: THREE.Quaternion;
+  _matrix: THREE.Matrix4;
+  _baseQuat: THREE.Quaternion;
+  _yawQuat: THREE.Quaternion;
+  _offset: THREE.Vector3;
+  _playerPosition: THREE.Vector3;
+
   constructor(params: {
     camera: THREE.Camera;
     scene: THREE.Scene;
@@ -59,6 +69,16 @@ export class CharacterController {
     this.characterLoaded = false;
 
     this._inputVelocity = new THREE.Vector3();
+    this._localUp = new THREE.Vector3();
+    this._localForward = new THREE.Vector3();
+    this._localRight = new THREE.Vector3();
+    this._correctedForward = new THREE.Vector3();
+    this._quaternion = new THREE.Quaternion();
+    this._matrix = new THREE.Matrix4();
+    this._baseQuat = new THREE.Quaternion();
+    this._yawQuat = new THREE.Quaternion();
+    this._offset = new THREE.Vector3();
+    this._playerPosition = new THREE.Vector3();
     this._velocityFactor = 1;
     this._jumpVelocity = 100;
     this._canJump = false;
@@ -213,29 +233,29 @@ export class CharacterController {
     this._input.canJump = this._canJump;
     this._stateMachine.Update(this._input);
 
-    const velocity = this._playerBody.velocity;
-
-    const position = new THREE.Vector3(
-      this._playerBody.position.x,
-      this._playerBody.position.y,
-      this._playerBody.position.z,
-    );
-
     // Local "up" is from globe center
-    const localUp = position.clone().normalize();
+    this._localUp
+      .set(
+        this._playerBody.position.x,
+        this._playerBody.position.y,
+        this._playerBody.position.z,
+      )
+      .normalize();
 
     // Get current orientation
-    const quaternion = new THREE.Quaternion(
+    this._quaternion.set(
       this._playerBody.quaternion.x,
       this._playerBody.quaternion.y,
       this._playerBody.quaternion.z,
       this._playerBody.quaternion.w,
     );
 
-    const rawForward = new THREE.Vector3(0, 0, 1).applyQuaternion(quaternion);
-
     // Project forward direction to tangent plane
-    const localForward = rawForward.clone().projectOnPlane(localUp).normalize();
+    this._localForward
+      .set(0, 0, 1)
+      .applyQuaternion(this._quaternion)
+      .projectOnPlane(this._localUp)
+      .normalize();
 
     let acc = 1;
     if (this._input._keys.shift) {
@@ -243,21 +263,21 @@ export class CharacterController {
     }
 
     if (this._input._keys.space && this._canJump) {
-      this._inputVelocity.addScaledVector(localUp, this._jumpVelocity);
+      this._inputVelocity.addScaledVector(this._localUp, this._jumpVelocity);
       this._canJump = false;
       this._input._keys.space = false;
     }
 
     if (this._input._keys.forward) {
       this._inputVelocity.addScaledVector(
-        localForward,
+        this._localForward,
         acc * this._velocityFactor * timeInSeconds * 100,
       );
     }
 
     if (this._input._keys.backward) {
       this._inputVelocity.addScaledVector(
-        localForward,
+        this._localForward,
         -acc * this._velocityFactor * timeInSeconds * 100,
       );
     }
@@ -271,33 +291,31 @@ export class CharacterController {
       yaw = -4.0 * Math.PI * timeInSeconds * 0.25;
     }
 
-    velocity.x *= 0.8;
-    velocity.y *= 0.8;
-    velocity.z *= 0.8;
+    this._playerBody.velocity.x *= 0.8;
+    this._playerBody.velocity.y *= 0.8;
+    this._playerBody.velocity.z *= 0.8;
 
-    velocity.x += this._inputVelocity.x;
-    velocity.y += this._inputVelocity.y;
-    velocity.z += this._inputVelocity.z;
+    this._playerBody.velocity.x += this._inputVelocity.x;
+    this._playerBody.velocity.y += this._inputVelocity.y;
+    this._playerBody.velocity.z += this._inputVelocity.z;
 
     // Rebuild orientation to align with globe and apply yaw
-    const localRight = new THREE.Vector3()
-      .crossVectors(localUp, localForward)
+    this._localRight
+      .crossVectors(this._localUp, this._localForward)
       .normalize();
-    const correctedForward = new THREE.Vector3()
-      .crossVectors(localRight, localUp)
+    this._correctedForward
+      .crossVectors(this._localRight, this._localUp)
       .normalize();
 
-    const mat = new THREE.Matrix4().makeBasis(
-      localRight,
-      localUp,
-      correctedForward,
+    this._matrix.makeBasis(
+      this._localRight,
+      this._localUp,
+      this._correctedForward,
     );
 
-    const baseQuat = new THREE.Quaternion().setFromRotationMatrix(mat);
-    const yawQuat = new THREE.Quaternion()
-      .setFromAxisAngle(localUp, yaw)
-      .normalize();
-    const resultingQuat = baseQuat.premultiply(yawQuat);
+    this._baseQuat.setFromRotationMatrix(this._matrix);
+    this._yawQuat.setFromAxisAngle(this._localUp, yaw).normalize();
+    const resultingQuat = this._baseQuat.premultiply(this._yawQuat);
 
     this._playerBody.quaternion.set(
       resultingQuat.x,
@@ -312,13 +330,15 @@ export class CharacterController {
       this._playerBody.quaternion.w,
     );
 
-    const offset = localUp.clone().multiplyScalar(-this._bodyRadius);
-    const playerPosition = new THREE.Vector3(
-      this._playerBody.position.x,
-      this._playerBody.position.y,
-      this._playerBody.position.z,
-    ).add(offset);
-    this._target.position.copy(playerPosition);
+    this._offset.copy(this._localUp).multiplyScalar(-this._bodyRadius);
+    this._playerPosition
+      .set(
+        this._playerBody.position.x,
+        this._playerBody.position.y,
+        this._playerBody.position.z,
+      )
+      .add(this._offset);
+    this._target.position.copy(this._playerPosition);
 
     if (this._playerBody.position.length() > 250) {
       this.ResetPlayer();
