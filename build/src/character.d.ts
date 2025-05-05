@@ -1,40 +1,54 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { CharacterFSM } from './characterAnimations';
+type Animation = {
+    readonly action: THREE.AnimationAction;
+    readonly clip: THREE.AnimationClip;
+};
+type Animations = Record<string, Animation>;
 export declare class CharacterControllerProxy {
-    _animations: any;
+    _animations: Animations;
     constructor(animations: {});
-    get animations(): any;
+    get animations(): Animations;
 }
 export declare class CharacterController {
     _params: {
         camera: THREE.Camera;
         scene: THREE.Scene;
         world: CANNON.World;
-        planetRadius: number;
         groundMaterial: CANNON.Material;
+        initPosition: THREE.Vector3;
     };
-    startingPos: THREE.Vector3;
-    canJump: boolean;
-    _animations: any;
+    characterLoaded: boolean;
+    _canJump: boolean;
+    _animations: Animations;
     _input: CharacterControllerInput;
     _stateMachine: CharacterFSM;
     _target: THREE.Group;
-    bodyRadius: number;
-    playerBody: CANNON.Body;
+    _bodyRadius: number;
+    _playerBody: CANNON.Body;
     _mixer: THREE.AnimationMixer;
     _manager: THREE.LoadingManager;
-    inputVelocity: THREE.Vector3;
-    velocityFactor: number;
-    jumpVelocity: number;
-    characterLoaded: boolean;
-    slipperyMaterial: CANNON.Material;
+    _inputVelocity: THREE.Vector3;
+    _forwardVelocity: number;
+    _velocityFactor: number;
+    _jumpVelocity: number;
+    _localUp: THREE.Vector3;
+    _localForward: THREE.Vector3;
+    _localRight: THREE.Vector3;
+    _correctedForward: THREE.Vector3;
+    _quaternion: THREE.Quaternion;
+    _matrix: THREE.Matrix4;
+    _baseQuat: THREE.Quaternion;
+    _yawQuat: THREE.Quaternion;
+    _offset: THREE.Vector3;
+    _playerPosition: THREE.Vector3;
     constructor(params: {
         camera: THREE.Camera;
         scene: THREE.Scene;
         world: CANNON.World;
-        planetRadius: number;
         groundMaterial: CANNON.Material;
+        initPosition: THREE.Vector3;
     });
     _Init(): void;
     _LoadModels(): void;
@@ -60,3 +74,4 @@ export declare class CharacterControllerInput {
     _onKeyDown(e: KeyboardEvent): void;
     _onKeyUp(e: KeyboardEvent): void;
 }
+export {};

@@ -1,6 +1,6 @@
 import { CharacterControllerInput, CharacterControllerProxy } from './character';
 declare class FiniteStateMachine {
-    _states: {};
+    _states: Record<string, typeof State>;
     _currentState: State | null;
     constructor();
     _AddState(name: string, type: typeof State): void;
@@ -16,7 +16,7 @@ declare class State {
     _parent: CharacterFSM;
     constructor(parent: CharacterFSM);
     get Name(): string;
-    Enter(prevState: State): void;
+    Enter(prevState: State | null): void;
     Exit(): void;
     Update(input: CharacterControllerInput): void;
 }

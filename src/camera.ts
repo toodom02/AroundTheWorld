@@ -24,8 +24,8 @@ export class ThirdPersonCamera {
       new THREE.Vector3(
         this._target.Position.x,
         this._target.Position.y,
-        this._target.Position.z
-      )
+        this._target.Position.z,
+      ),
     );
     return idealOffset;
   }
@@ -37,8 +37,8 @@ export class ThirdPersonCamera {
       new THREE.Vector3(
         this._target.Position.x,
         this._target.Position.y,
-        this._target.Position.z
-      )
+        this._target.Position.z,
+      ),
     );
     return idealLookat;
   }
