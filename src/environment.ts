@@ -68,7 +68,7 @@ export class Environment {
     });
   }
 
-  _handlePhysicsObjects() {
+  handlePhysicsObjects() {
     if (this._ball) {
       this._ball.updatePosition();
     }

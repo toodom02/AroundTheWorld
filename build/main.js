@@ -66963,7 +66963,7 @@ class CharacterController {
             const radius = 2;
             this._bodyRadius = halfHeight;
             this._playerBody = new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Body({
-                mass: 1,
+                mass: 100,
                 allowSleep: false,
                 fixedRotation: true,
                 material: this._params.groundMaterial,
@@ -74870,23 +74870,27 @@ class ThirdPersonCamera {
     _target;
     _currentPosition;
     _currentLookat;
+    _idealLookat;
+    _idealOffset;
     constructor(params) {
         this._camera = params.camera;
         this._target = params.target;
         this._currentPosition = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
         this._currentLookat = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+        this._idealLookat = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+        this._idealOffset = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
     }
     _CalculateIdealOffset() {
-        const idealOffset = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3(-15, 20, -30);
-        idealOffset.applyQuaternion(this._target.Rotation);
-        idealOffset.add(new three__WEBPACK_IMPORTED_MODULE_0__.Vector3(this._target.Position.x, this._target.Position.y, this._target.Position.z));
-        return idealOffset;
+        this._idealOffset.set(-15, 20, -30);
+        this._idealOffset.applyQuaternion(this._target.Rotation);
+        this._idealOffset.add(new three__WEBPACK_IMPORTED_MODULE_0__.Vector3(this._target.Position.x, this._target.Position.y, this._target.Position.z));
+        return this._idealOffset;
     }
     _CalculateIdealLookat() {
-        const idealLookat = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3(0, 10, 50);
-        idealLookat.applyQuaternion(this._target.Rotation);
-        idealLookat.add(new three__WEBPACK_IMPORTED_MODULE_0__.Vector3(this._target.Position.x, this._target.Position.y, this._target.Position.z));
-        return idealLookat;
+        this._idealLookat.set(0, 10, 50);
+        this._idealLookat.applyQuaternion(this._target.Rotation);
+        this._idealLookat.add(new three__WEBPACK_IMPORTED_MODULE_0__.Vector3(this._target.Position.x, this._target.Position.y, this._target.Position.z));
+        return this._idealLookat;
     }
     Update(timeElapsed) {
         const idealOffset = this._CalculateIdealOffset();
@@ -74894,6 +74898,9 @@ class ThirdPersonCamera {
         const t = 1.0 - Math.pow(0.001, timeElapsed);
         this._currentPosition.lerp(idealOffset, t);
         this._currentLookat.lerp(idealLookat, t);
+        this._camera.up
+            .set(this._target.Position.x, this._target.Position.y, this._target.Position.z)
+            .normalize();
         this._camera.position.copy(this._currentPosition);
         this._camera.lookAt(this._currentLookat);
     }
@@ -74962,7 +74969,7 @@ class Environment {
             planetRadius: this._params.planetRadius,
         });
     }
-    _handlePhysicsObjects() {
+    handlePhysicsObjects() {
         if (this._ball) {
             this._ball.updatePosition();
         }
@@ -76710,11 +76717,12 @@ class World {
         this._world.gravity.set(0, -1, 0);
         this._world.addEventListener('postStep', () => {
             this._world.bodies.forEach(body => {
-                const v = new cannon_es__WEBPACK_IMPORTED_MODULE_4__.Vec3();
-                body.position.negate(v);
-                v.normalize();
-                v.scale(150, body.force);
-                body.applyLocalForce(v);
+                if (body.mass === 0)
+                    return;
+                const gravityForce = new cannon_es__WEBPACK_IMPORTED_MODULE_4__.Vec3().copy(body.position).negate();
+                gravityForce.normalize();
+                gravityForce.scale(300 * body.mass, gravityForce);
+                body.applyForce(gravityForce, body.position);
                 body.force.y += body.mass; //cancel out world gravity
             });
         });
@@ -76799,7 +76807,7 @@ class World {
             }
             this._animate();
             this._environ.animate();
-            this._environ._handlePhysicsObjects();
+            this._environ.handlePhysicsObjects();
             if (this._debug) {
                 this._cannonDebugRenderer?.update();
             }

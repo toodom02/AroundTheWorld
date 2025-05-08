@@ -25,6 +25,6 @@ export declare class Environment {
     _createPhysicsObject(): void;
     _createMoon(): void;
     _createStars(): void;
-    _handlePhysicsObjects(): void;
+    handlePhysicsObjects(): void;
     animate(): void;
 }

@@ -6,6 +6,8 @@ export class ThirdPersonCamera {
   _target: CharacterController;
   _currentPosition: THREE.Vector3;
   _currentLookat: THREE.Vector3;
+  _idealLookat: THREE.Vector3;
+  _idealOffset: THREE.Vector3;
   constructor(params: {
     camera: THREE.PerspectiveCamera;
     target: CharacterController;
@@ -15,32 +17,34 @@ export class ThirdPersonCamera {
 
     this._currentPosition = new THREE.Vector3();
     this._currentLookat = new THREE.Vector3();
+    this._idealLookat = new THREE.Vector3();
+    this._idealOffset = new THREE.Vector3();
   }
 
   _CalculateIdealOffset() {
-    const idealOffset = new THREE.Vector3(-15, 20, -30);
-    idealOffset.applyQuaternion(this._target.Rotation);
-    idealOffset.add(
+    this._idealOffset.set(-15, 20, -30);
+    this._idealOffset.applyQuaternion(this._target.Rotation);
+    this._idealOffset.add(
       new THREE.Vector3(
         this._target.Position.x,
         this._target.Position.y,
         this._target.Position.z,
       ),
     );
-    return idealOffset;
+    return this._idealOffset;
   }
 
   _CalculateIdealLookat() {
-    const idealLookat = new THREE.Vector3(0, 10, 50);
-    idealLookat.applyQuaternion(this._target.Rotation);
-    idealLookat.add(
+    this._idealLookat.set(0, 10, 50);
+    this._idealLookat.applyQuaternion(this._target.Rotation);
+    this._idealLookat.add(
       new THREE.Vector3(
         this._target.Position.x,
         this._target.Position.y,
         this._target.Position.z,
       ),
     );
-    return idealLookat;
+    return this._idealLookat;
   }
 
   Update(timeElapsed: number) {
@@ -51,6 +55,14 @@ export class ThirdPersonCamera {
 
     this._currentPosition.lerp(idealOffset, t);
     this._currentLookat.lerp(idealLookat, t);
+
+    this._camera.up
+      .set(
+        this._target.Position.x,
+        this._target.Position.y,
+        this._target.Position.z,
+      )
+      .normalize();
 
     this._camera.position.copy(this._currentPosition);
     this._camera.lookAt(this._currentLookat);

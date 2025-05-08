@@ -92,11 +92,11 @@ class World {
     this._world.gravity.set(0, -1, 0);
     this._world.addEventListener('postStep', () => {
       this._world.bodies.forEach(body => {
-        const v = new CANNON.Vec3();
-        body.position.negate(v);
-        v.normalize();
-        v.scale(150, body.force);
-        body.applyLocalForce(v);
+        if (body.mass === 0) return;
+        const gravityForce = new CANNON.Vec3().copy(body.position).negate();
+        gravityForce.normalize();
+        gravityForce.scale(300 * body.mass, gravityForce);
+        body.applyForce(gravityForce, body.position);
         body.force.y += body.mass; //cancel out world gravity
       });
     });
@@ -199,7 +199,7 @@ class World {
       this._animate();
 
       this._environ.animate();
-      this._environ._handlePhysicsObjects();
+      this._environ.handlePhysicsObjects();
 
       if (this._debug) {
         this._cannonDebugRenderer?.update();

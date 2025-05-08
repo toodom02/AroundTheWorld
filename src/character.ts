@@ -111,7 +111,7 @@ export class CharacterController {
       this._bodyRadius = halfHeight;
 
       this._playerBody = new CANNON.Body({
-        mass: 1,
+        mass: 100,
         allowSleep: false,
         fixedRotation: true,
         material: this._params.groundMaterial,

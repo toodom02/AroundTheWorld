@@ -5,6 +5,8 @@ export declare class ThirdPersonCamera {
     _target: CharacterController;
     _currentPosition: THREE.Vector3;
     _currentLookat: THREE.Vector3;
+    _idealLookat: THREE.Vector3;
+    _idealOffset: THREE.Vector3;
     constructor(params: {
         camera: THREE.PerspectiveCamera;
         target: CharacterController;
