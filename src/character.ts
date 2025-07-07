@@ -42,7 +42,6 @@ export class CharacterController {
   _inputVelocity: THREE.Vector3;
   _forwardVelocity: number;
   _velocityFactor: number;
-  _jumpVelocity: number;
   _localUp: THREE.Vector3;
   _localForward: THREE.Vector3;
   _localRight: THREE.Vector3;
@@ -53,6 +52,9 @@ export class CharacterController {
   _yawQuat: THREE.Quaternion;
   _offset: THREE.Vector3;
   _playerPosition: THREE.Vector3;
+  _jumpForceDuration: number;
+  _jumpForceMaxDuration: number;
+  _jumpForceStrength: number;
 
   constructor(params: {
     camera: THREE.Camera;
@@ -80,7 +82,9 @@ export class CharacterController {
     this._offset = new THREE.Vector3();
     this._playerPosition = new THREE.Vector3();
     this._velocityFactor = 1;
-    this._jumpVelocity = 100;
+    this._jumpForceDuration = 0;
+    this._jumpForceMaxDuration = 0.2; // time to apply jump force
+    this._jumpForceStrength = 5000000;
     this._canJump = false;
 
     this._animations = {};
@@ -263,9 +267,19 @@ export class CharacterController {
     }
 
     if (this._input._keys.space && this._canJump) {
-      this._inputVelocity.addScaledVector(this._localUp, this._jumpVelocity);
+      this._jumpForceDuration = this._jumpForceMaxDuration;
       this._canJump = false;
       this._input._keys.space = false;
+    }
+    if (this._jumpForceDuration > 0) {
+      const forceAmount = this._jumpForceStrength * timeInSeconds;
+      const jumpForce = new CANNON.Vec3(
+        this._localUp.x * forceAmount, 
+        this._localUp.y * forceAmount, 
+        this._localUp.z * forceAmount,
+      );
+      this._playerBody.applyForce(jumpForce, this._playerBody.position);
+      this._jumpForceDuration -= timeInSeconds;
     }
 
     if (this._input._keys.forward) {

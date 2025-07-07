@@ -66911,7 +66911,6 @@ class CharacterController {
     _inputVelocity;
     _forwardVelocity;
     _velocityFactor;
-    _jumpVelocity;
     _localUp;
     _localForward;
     _localRight;
@@ -66922,6 +66921,9 @@ class CharacterController {
     _yawQuat;
     _offset;
     _playerPosition;
+    _jumpForceDuration;
+    _jumpForceMaxDuration;
+    _jumpForceStrength;
     constructor(params) {
         this._params = params;
         this._Init();
@@ -66940,7 +66942,9 @@ class CharacterController {
         this._offset = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
         this._playerPosition = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
         this._velocityFactor = 1;
-        this._jumpVelocity = 100;
+        this._jumpForceDuration = 0;
+        this._jumpForceMaxDuration = 0.2; // time to apply jump force
+        this._jumpForceStrength = 5000000;
         this._canJump = false;
         this._animations = {};
         this._input = new CharacterControllerInput();
@@ -67082,9 +67086,15 @@ class CharacterController {
             acc = 3;
         }
         if (this._input._keys.space && this._canJump) {
-            this._inputVelocity.addScaledVector(this._localUp, this._jumpVelocity);
+            this._jumpForceDuration = this._jumpForceMaxDuration;
             this._canJump = false;
             this._input._keys.space = false;
+        }
+        if (this._jumpForceDuration > 0) {
+            const forceAmount = this._jumpForceStrength * timeInSeconds;
+            const jumpForce = new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Vec3(this._localUp.x * forceAmount, this._localUp.y * forceAmount, this._localUp.z * forceAmount);
+            this._playerBody.applyForce(jumpForce, this._playerBody.position);
+            this._jumpForceDuration -= timeInSeconds;
         }
         if (this._input._keys.forward) {
             this._inputVelocity.addScaledVector(this._localForward, acc * this._velocityFactor * timeInSeconds * 100);

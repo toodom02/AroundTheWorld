@@ -32,7 +32,6 @@ export declare class CharacterController {
     _inputVelocity: THREE.Vector3;
     _forwardVelocity: number;
     _velocityFactor: number;
-    _jumpVelocity: number;
     _localUp: THREE.Vector3;
     _localForward: THREE.Vector3;
     _localRight: THREE.Vector3;
@@ -43,6 +42,9 @@ export declare class CharacterController {
     _yawQuat: THREE.Quaternion;
     _offset: THREE.Vector3;
     _playerPosition: THREE.Vector3;
+    _jumpForceDuration: number;
+    _jumpForceMaxDuration: number;
+    _jumpForceStrength: number;
     constructor(params: {
         camera: THREE.Camera;
         scene: THREE.Scene;
