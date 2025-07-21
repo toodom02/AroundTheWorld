@@ -121,6 +121,7 @@ class World {
       world: this._world,
       groundMaterial: this._groundMaterial,
       planetRadius: this._planetRadius,
+      controller: this._controls,
     });
 
     this._previousRAF = 0;
