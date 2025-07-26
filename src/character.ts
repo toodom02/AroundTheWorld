@@ -30,6 +30,7 @@ export class CharacterController {
     initPosition: THREE.Vector3;
   };
   characterLoaded: boolean;
+  _isHit: boolean;
   _canJump: boolean;
   _animations: Animations;
   _input: CharacterControllerInput;
@@ -86,12 +87,20 @@ export class CharacterController {
     this._jumpForceMaxDuration = 0.2; // time to apply jump force
     this._jumpForceStrength = 5000000;
     this._canJump = false;
+    this._isHit = false;
 
     this._animations = {};
     this._input = new CharacterControllerInput();
     this._stateMachine = new CharacterFSM(
       new CharacterControllerProxy(this._animations),
     );
+
+    this._playerBody = new CANNON.Body({
+      mass: 100,
+      allowSleep: false,
+      fixedRotation: true,
+      material: this._params.groundMaterial,
+    });
 
     this._LoadModels();
   }
@@ -113,13 +122,6 @@ export class CharacterController {
       const halfHeight = 8;
       const radius = 2;
       this._bodyRadius = halfHeight;
-
-      this._playerBody = new CANNON.Body({
-        mass: 100,
-        allowSleep: false,
-        fixedRotation: true,
-        material: this._params.groundMaterial,
-      });
 
       // estimate shape by spheres (to support collision with trimesh)
       const offsets = [
@@ -175,6 +177,9 @@ export class CharacterController {
       });
       loader.load('runback.fbx', a => {
         _OnLoad('runback', a);
+      });
+      loader.load('dying.fbx', a => {
+        _OnLoad('dying', a);
       });
 
       const contactNormal = new CANNON.Vec3(); // Normal in the contact, pointing *out* of whatever the player touched
@@ -235,6 +240,7 @@ export class CharacterController {
 
     this._inputVelocity.set(0, 0, 0);
     this._input.canJump = this._canJump;
+    this._input.isHit = this._isHit;
     this._stateMachine.Update(this._input);
 
     // Local "up" is from globe center
@@ -374,6 +380,7 @@ export class CharacterControllerInput {
     shift: boolean;
   };
   canJump: boolean;
+  isHit: boolean;
 
   Enable() {
     this._keys = {

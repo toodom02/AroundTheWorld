@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
+import { CharacterController } from '../character';
 
 export class Meteor {
   _params: {
     key: string;
     scene: THREE.Scene;
     world: CANNON.World;
-    playerBody: CANNON.Body;
+    controller: CharacterController;
     atmosphereRadius: number;
     planetRadius: number;
     groundMaterial: CANNON.Material;
@@ -17,15 +18,13 @@ export class Meteor {
   radius: number;
   _start: THREE.Vector3;
   crash: boolean;
-  hitPlayer: boolean;
   _mesh: THREE.Group;
   _body: CANNON.Body;
-  _playerBody: CANNON.Body;
   constructor(params: {
     key: string;
     scene: THREE.Scene;
     world: CANNON.World;
-    playerBody: CANNON.Body;
+    controller: CharacterController;
     atmosphereRadius: number;
     planetRadius: number;
     groundMaterial: CANNON.Material;
@@ -77,7 +76,6 @@ export class Meteor {
     this._params.reservedMeteors.delete(this._params.key);
     this._params.activeMeteors.set(this._params.key, this);
 
-    this.hitPlayer = false;
     this.crash = false;
 
     const minHeight = this._params.planetRadius + this._params.atmosphereRadius;
@@ -92,8 +90,8 @@ export class Meteor {
         const {contact} = event;
         this.crash = true;
 
-        if (contact.bj.id === this._params.playerBody.id) {
-          this.hitPlayer = true;
+        if (contact.bi.id === this._params.controller._playerBody.id) {
+          this._params.controller._isHit = true;
         }
       });
     }

@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import {CharacterControllerInput, CharacterControllerProxy} from './character';
 
 class FiniteStateMachine {
@@ -30,6 +31,10 @@ class FiniteStateMachine {
   }
 
   Update(input: CharacterControllerInput) {
+    if (input.isHit) {
+      this.SetState('dying');
+      return;
+    }
     if (this._currentState) {
       this._currentState.Update(input);
     }
@@ -50,6 +55,7 @@ export class CharacterFSM extends FiniteStateMachine {
     this._AddState('run', RunState);
     this._AddState('walkback', WalkBackState);
     this._AddState('runback', RunBackState);
+    this._AddState('dying', DyingState);
   }
 }
 
@@ -259,5 +265,33 @@ class RunBackState extends State {
     }
 
     this._parent.SetState('idle');
+  }
+}
+
+class DyingState extends State {
+  constructor(parent: CharacterFSM) {
+    super(parent);
+  }
+
+  get Name() {
+    return 'dying';
+  }
+
+  Enter(prevState: State) {
+    const curAction = this._parent._proxy._animations['dying'].action;
+    if (prevState) {
+      const prevAction = this._parent._proxy._animations[prevState.Name].action;
+      curAction.enabled = true;
+      curAction.time = 0.0;
+      curAction.setEffectiveTimeScale(1.0);
+      curAction.setEffectiveWeight(1.0);
+      curAction.crossFadeFrom(prevAction, 0.1, true);
+    }
+    curAction.play();
+    curAction.loop = THREE.LoopOnce;
+    curAction.clampWhenFinished = true;  
+}
+
+  Update(input: CharacterControllerInput) {
   }
 }
