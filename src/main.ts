@@ -15,6 +15,7 @@ class World {
   _environ: Environment;
   _previousRAF: number;
   _controls: CharacterController;
+  _playerBody: CANNON.Body;
   _thirdPersonCamera: ThirdPersonCamera;
   _groundMaterial: CANNON.Material;
   _score: number;
@@ -115,6 +116,9 @@ class World {
     this._world.addContactMaterial(ground_ground_cm);
 
     this._planetRadius = 100;
+    this._previousRAF = 0;
+    this._LoadAnimatedModel();
+
     // create eveything in scene/world
     this._environ = new Environment({
       scene: this._scene,
@@ -123,9 +127,6 @@ class World {
       planetRadius: this._planetRadius,
       controller: this._controls,
     });
-
-    this._previousRAF = 0;
-    this._LoadAnimatedModel();
 
     this._thirdPersonCamera = new ThirdPersonCamera({
       camera: this._camera,
@@ -141,6 +142,10 @@ class World {
   _Start() {
     this._score = 0;
     this._controls.Enable();
+  }
+
+  _GameOver() {
+    this._controls.Disable();
   }
 
   _OnWindowResize() {
@@ -195,6 +200,10 @@ class World {
     requestAnimationFrame(t => {
       if (this._previousRAF === null) {
         this._previousRAF = t;
+      }
+
+      if (this._controls._isHit) {
+        this._GameOver();
       }
 
       this._animate();

@@ -74,7 +74,7 @@ export class Environment {
           key,
           scene: this._params.scene,
           world: this._params.world,
-          playerBody: this._params.controller._playerBody,
+          controller: this._params.controller,
           atmosphereRadius: this._atmosphereRadius,
           planetRadius: this._params.planetRadius,
           groundMaterial: this._params.groundMaterial,
