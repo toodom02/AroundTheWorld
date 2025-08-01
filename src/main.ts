@@ -5,8 +5,10 @@ import CannonDebugger from 'cannon-es-debugger';
 import {CharacterController} from './character';
 import {ThirdPersonCamera} from './camera';
 import {Environment} from './environment';
+import { Menu } from './menu';
 
 class World {
+  _menu: Menu;
   _started: boolean;
   _threejs: THREE.WebGLRenderer;
   _camera: THREE.PerspectiveCamera;
@@ -19,7 +21,7 @@ class World {
   _thirdPersonCamera: ThirdPersonCamera;
   _groundMaterial: CANNON.Material;
   _score: number;
-  _scorediv: HTMLElement;
+  _startTime: number;
   _initialMenu: boolean;
   _fireTexture: THREE.Texture;
   _planetRadius: number;
@@ -33,8 +35,17 @@ class World {
     this._debug = false;
     this._fireTexture = new THREE.TextureLoader().load('./resources/fire.png');
 
-    this._initialMenu = true;
-    this._scorediv = document.getElementById('score')!;
+    this._menu = new Menu({
+      onStart: () => {
+        this._Start();
+        this._started = true;
+        this._animate(); // TODO: trigger animate on load
+      },
+      onRestart: () => {
+        this._Start();
+        this._started = true;
+      }
+    });
     this._started = false;
     this._threejs = new THREE.WebGLRenderer();
     this._threejs.shadowMap.enabled = true;
@@ -133,19 +144,20 @@ class World {
       target: this._controls,
     });
 
-    this._Start();
     // const controls = new OrbitControls( this._camera, this._threejs.domElement );
 
     this._animateMenu();
   }
 
   _Start() {
-    this._score = 0;
+    this._controls.ResetPlayer();
+    this._startTime = performance.now();
     this._controls.Enable();
   }
 
   _GameOver() {
     this._controls.Disable();
+    this._menu.ShowGameOver(this._score);
   }
 
   _OnWindowResize() {
@@ -171,25 +183,10 @@ class World {
         this._environ.animate();
         this._threejs.render(this._scene, this._camera);
       });
-      if (this._initialMenu) {
+      if (this._menu.showMenu) {
         // enable start when assets loaded
         if (this._environ.environLoaded && this._controls.characterLoaded) {
-          const startButton = document.getElementById('start-button')!;
-          startButton.innerHTML = 'Start';
-          startButton.classList.add('loaded');
-          startButton.onclick = () => {
-            if (!_APP) return;
-            _APP._started = true;
-            _APP._animate();
-            _APP._initialMenu = false;
-            const audioelem = <HTMLAudioElement>(
-              document.getElementById('music')
-            );
-            void audioelem.play();
-            audioelem.volume = 0.2;
-            document.getElementById('menu')!.style.display = 'none';
-            // document.getElementById('scorediv')!.style.display = 'flex';
-          };
+          this._menu.EnableStartMenu();
         }
       }
     }
@@ -204,6 +201,8 @@ class World {
 
       if (this._controls._isHit) {
         this._GameOver();
+      } else {
+        this._score = Math.floor((t - this._startTime) * 0.001);
       }
 
       this._animate();

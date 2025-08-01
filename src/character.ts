@@ -224,7 +224,11 @@ export class CharacterController {
     this._playerBody.position.y = this._target.position.y + this._bodyRadius;
     this._playerBody.position.z = this._target.position.z;
     this._playerBody.velocity.set(0, 0, 0);
+    this._playerBody.angularVelocity.set(0, 0, 0);
+    this._playerBody.force.set(0, 0, 0);
     this._target.rotation.set(0, 0, 0);
+    this._stateMachine.SetState('idle');
+    this._isHit = false;
   }
 
   Enable() {

@@ -279,6 +279,8 @@ class DyingState extends State {
 
   Enter(prevState: State) {
     const curAction = this._parent._proxy._animations['dying'].action;
+    curAction.reset();
+    curAction.stop();
     if (prevState) {
       const prevAction = this._parent._proxy._animations[prevState.Name].action;
       curAction.enabled = true;
@@ -287,9 +289,9 @@ class DyingState extends State {
       curAction.setEffectiveWeight(1.0);
       curAction.crossFadeFrom(prevAction, 0.1, true);
     }
-    curAction.play();
     curAction.loop = THREE.LoopOnce;
-    curAction.clampWhenFinished = true;  
+    curAction.clampWhenFinished = true;
+    curAction.play();
 }
 
   Update(input: CharacterControllerInput) {
