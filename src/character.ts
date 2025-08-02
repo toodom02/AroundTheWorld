@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
 import * as CANNON from 'cannon-es';
-import {CharacterFSM} from './characterAnimations';
+import { CharacterFSM } from './characterAnimations';
 
 type Animation = {
   readonly action: THREE.AnimationAction;
@@ -11,242 +11,215 @@ type Animation = {
 type Animations = Record<string, Animation>;
 
 export class CharacterControllerProxy {
-  _animations: Animations;
-  constructor(animations: {}) {
-    this._animations = animations;
-  }
+  constructor(private _animations: Animations) {}
 
   get animations() {
     return this._animations;
   }
 }
 
-export class CharacterController {
-  _params: {
-    camera: THREE.Camera;
-    scene: THREE.Scene;
-    world: CANNON.World;
-    groundMaterial: CANNON.Material;
-    initPosition: THREE.Vector3;
-  };
-  characterLoaded: boolean;
-  _isHit: boolean;
-  _canJump: boolean;
-  _animations: Animations;
-  _input: CharacterControllerInput;
-  _stateMachine: CharacterFSM;
-  _target: THREE.Group;
-  _bodyRadius: number;
-  _playerBody: CANNON.Body;
-  _mixer: THREE.AnimationMixer;
-  _manager: THREE.LoadingManager;
-  _inputVelocity: THREE.Vector3;
-  _forwardVelocity: number;
-  _velocityFactor: number;
-  _localUp: THREE.Vector3;
-  _localForward: THREE.Vector3;
-  _localRight: THREE.Vector3;
-  _correctedForward: THREE.Vector3;
-  _quaternion: THREE.Quaternion;
-  _matrix: THREE.Matrix4;
-  _baseQuat: THREE.Quaternion;
-  _yawQuat: THREE.Quaternion;
-  _offset: THREE.Vector3;
-  _playerPosition: THREE.Vector3;
-  _jumpForceDuration: number;
-  _jumpForceMaxDuration: number;
-  _jumpForceStrength: number;
+interface CharacterControllerParams {
+  camera: THREE.Camera;
+  scene: THREE.Scene;
+  world: CANNON.World;
+  groundMaterial: CANNON.Material;
+  initPosition: THREE.Vector3;
+}
 
-  constructor(params: {
-    camera: THREE.Camera;
-    scene: THREE.Scene;
-    world: CANNON.World;
-    groundMaterial: CANNON.Material;
-    initPosition: THREE.Vector3;
-  }) {
-    this._params = params;
-    this._Init();
+export class CharacterController {
+  static async create(params: CharacterControllerParams): Promise<CharacterController> {
+    const controller = new CharacterController(params);
+    await controller._init();
+    return controller;
   }
 
-  _Init() {
-    this.characterLoaded = false;
+  private _input = new CharacterControllerInput();
+  private _stateMachine = new CharacterFSM(new CharacterControllerProxy({}));
+  private _animations: Animations = {};
+  private _mixer: THREE.AnimationMixer;
+  private _target: THREE.Group;
+  private _playerBody: CANNON.Body;
 
-    this._inputVelocity = new THREE.Vector3();
-    this._localUp = new THREE.Vector3();
-    this._localForward = new THREE.Vector3();
-    this._localRight = new THREE.Vector3();
-    this._correctedForward = new THREE.Vector3();
-    this._quaternion = new THREE.Quaternion();
-    this._matrix = new THREE.Matrix4();
-    this._baseQuat = new THREE.Quaternion();
-    this._yawQuat = new THREE.Quaternion();
-    this._offset = new THREE.Vector3();
-    this._playerPosition = new THREE.Vector3();
-    this._velocityFactor = 1;
-    this._jumpForceDuration = 0;
-    this._jumpForceMaxDuration = 0.2; // time to apply jump force
-    this._jumpForceStrength = 5000000;
-    this._canJump = false;
-    this._isHit = false;
+  private _inputVelocity = new THREE.Vector3();
+  private _localUp = new THREE.Vector3();
+  private _localForward = new THREE.Vector3();
+  private _localRight = new THREE.Vector3();
+  private _correctedForward = new THREE.Vector3();
+  private _quaternion = new THREE.Quaternion();
+  private _matrix = new THREE.Matrix4();
+  private _baseQuat = new THREE.Quaternion();
+  private _yawQuat = new THREE.Quaternion();
+  private _offset = new THREE.Vector3();
+  private _playerPosition = new THREE.Vector3();
 
-    this._animations = {};
-    this._input = new CharacterControllerInput();
-    this._stateMachine = new CharacterFSM(
-      new CharacterControllerProxy(this._animations),
-    );
+  private _bodyRadius = 8;
+  private _velocityFactor = 1;
+  private _canJump = false;
+  private _jumpForceDuration = 0;
+  private _jumpForceMaxDuration = 0.2;
+  private _jumpForceStrength = 5000000;
 
+  isHit = false;
+
+  private constructor(private _params: CharacterControllerParams) {}
+
+  private async _init(): Promise<void> {
+    this._initPhysicsBody();
+    await this._loadCharacterModel();
+  }
+
+  private _initPhysicsBody() {
     this._playerBody = new CANNON.Body({
       mass: 100,
       allowSleep: false,
       fixedRotation: true,
       material: this._params.groundMaterial,
     });
-
-    this._LoadModels();
   }
 
-  _LoadModels() {
+  private async _loadCharacterModel(): Promise<void> {
     const loader = new FBXLoader();
     loader.setPath('./resources/models/');
-    loader.load('timmy.fbx', fbx => {
-      fbx.scale.setScalar(0.1);
-      fbx.traverse(c => {
-        c.castShadow = true;
-      });
-      fbx.position.copy(this._params.initPosition);
 
-      this._target = fbx;
-      this._params.scene.add(this._target);
+    const fbx = await new Promise<THREE.Group>((resolve, reject) => {
+      loader.load('timmy.fbx', resolve, undefined, reject);
+    });
 
-      // make physics shape
-      const halfHeight = 8;
-      const radius = 2;
-      this._bodyRadius = halfHeight;
+    fbx.scale.setScalar(0.1);
+    fbx.traverse(child => (child.castShadow = true));
+    fbx.position.copy(this._params.initPosition);
 
-      // estimate shape by spheres (to support collision with trimesh)
-      const offsets = [
-        new CANNON.Vec3(0, -halfHeight + radius, 0),
-        new CANNON.Vec3(0, 0, 0),
-        new CANNON.Vec3(0, halfHeight - radius, 0),
-      ];
+    this._target = fbx;
+    this._params.scene.add(fbx);
 
-      for (const offset of offsets) {
-        const sphereShape = new CANNON.Sphere(radius);
-        this._playerBody.addShape(sphereShape, offset);
-      }
+    this._setupPlayerPhysics();
+    await this._setupStateMachine();
+  }
 
-      this._playerBody.position.x = fbx.position.x;
-      this._playerBody.position.y = fbx.position.y + this._bodyRadius;
-      this._playerBody.position.z = fbx.position.z;
-      this._params.world.addBody(this._playerBody);
+  private _setupPlayerPhysics() {
+    const radius = 2;
+    const offsets = [
+      new CANNON.Vec3(0, -this._bodyRadius + radius, 0),
+      new CANNON.Vec3(0, 0, 0),
+      new CANNON.Vec3(0, this._bodyRadius - radius, 0),
+    ];
 
-      this._playerBody.updateMassProperties();
+    for (const offset of offsets) {
+      this._playerBody.addShape(new CANNON.Sphere(radius), offset);
+    }
 
-      // manage animations
-      this._mixer = new THREE.AnimationMixer(this._target);
+    this._playerBody.position.set(
+      this._target.position.x,
+      this._target.position.y + this._bodyRadius,
+      this._target.position.z,
+    );
+    this._params.world.addBody(this._playerBody);
+    this._playerBody.updateMassProperties();
 
-      this._manager = new THREE.LoadingManager();
-      this._manager.onLoad = () => {
-        this._stateMachine.SetState('idle');
-        this.characterLoaded = true;
-      };
+    const contactNormal = new CANNON.Vec3();
+    const localUp = new CANNON.Vec3();
 
-      const _OnLoad = (animName: string, anim: THREE.Group) => {
-        const clip = anim.animations[0];
-        const action = this._mixer.clipAction(clip);
+    this._playerBody.addEventListener('collide', (event: any) => {
+      const { contact } = event;
+      const normal = contact.bi.id === this._playerBody.id
+        ? contact.ni.negate(contactNormal)
+        : contactNormal.copy(contact.ni);
 
-        this._animations[animName] = {
-          clip: clip,
-          action: action,
-        };
-      };
-
-      const loader = new FBXLoader(this._manager);
-      loader.setPath('./resources/animations/');
-      loader.load('idle.fbx', a => {
-        _OnLoad('idle', a);
-      });
-      loader.load('walk.fbx', a => {
-        _OnLoad('walk', a);
-      });
-      loader.load('run.fbx', a => {
-        _OnLoad('run', a);
-      });
-      loader.load('walkback.fbx', a => {
-        _OnLoad('walkback', a);
-      });
-      loader.load('runback.fbx', a => {
-        _OnLoad('runback', a);
-      });
-      loader.load('dying.fbx', a => {
-        _OnLoad('dying', a);
-      });
-
-      const contactNormal = new CANNON.Vec3(); // Normal in the contact, pointing *out* of whatever the player touched
-      const localUp = new CANNON.Vec3();
-      this._playerBody.addEventListener(
-        'collide',
-        (event: {contact: CANNON.ContactEquation}) => {
-          const {contact} = event;
-
-          // contact.bi and contact.bj are the colliding bodies, and contact.ni is the collision normal.
-          // We do not yet know which one is which! Let's check.
-          if (contact.bi.id === this._playerBody.id) {
-            // bi is the player body, flip the contact normal
-            contact.ni.negate(contactNormal);
-          } else {
-            // bi is something else. Keep the normal as it is
-            contactNormal.copy(contact.ni);
-          }
-
-          localUp.copy(this._playerBody.position).normalize();
-          if (contactNormal.dot(localUp) > 0.5) {
-            // Use a "good" threshold value between 0 and 1 here!
-            this._canJump = true;
-          }
-        },
-      );
+      localUp.copy(this._playerBody.position).normalize();
+      if (contactNormal.dot(localUp) > 0.5) this._canJump = true;
     });
   }
 
+  private async _setupStateMachine() {
+    await this._loadAnimations();
+    this._stateMachine = new CharacterFSM(new CharacterControllerProxy(this._animations));
+    this._stateMachine.SetState('idle');
+    this._mixer.update(0);
+  }
+
+  private async _loadAnimations(): Promise<void> {
+    this._mixer = new THREE.AnimationMixer(this._target);
+    const loader = new FBXLoader();
+    loader.setPath('./resources/animations/');
+
+    const animationNames = ['idle', 'walk', 'run', 'walkback', 'runback', 'dying'];
+
+    const promises = animationNames.map(name =>
+      new Promise<void>((resolve, reject) => {
+        loader.load(
+          `${name}.fbx`,
+          anim => {
+            const clip = anim.animations[0];
+            this._animations[name] = {
+              clip,
+              action: this._mixer.clipAction(clip),
+            };
+            resolve();
+          },
+          undefined,
+          reject,
+        );
+      }),
+    );
+
+    await Promise.all(promises);
+  }
+
   get Position() {
-    return this._playerBody.position;
+    return this._target.position;
   }
 
   get Rotation() {
-    if (!this._target) return new THREE.Quaternion();
-    return this._target.quaternion;
+    return this._target?.quaternion ?? new THREE.Quaternion();
   }
 
-  ResetPlayer() {
+  get body(): CANNON.Body {
+    return this._playerBody;
+  }
+
+  public ResetPlayer() {
     this._target.position.copy(this._params.initPosition);
-    this._playerBody.position.x = this._target.position.x;
-    this._playerBody.position.y = this._target.position.y + this._bodyRadius;
-    this._playerBody.position.z = this._target.position.z;
+    this._playerBody.position.set(
+      this._target.position.x,
+      this._target.position.y + this._bodyRadius,
+      this._target.position.z,
+    );
     this._playerBody.velocity.set(0, 0, 0);
     this._playerBody.angularVelocity.set(0, 0, 0);
     this._playerBody.force.set(0, 0, 0);
     this._target.rotation.set(0, 0, 0);
     this._stateMachine.SetState('idle');
-    this._isHit = false;
+    this.isHit = false;
   }
 
-  Enable() {
+  public Enable() {
     this._input.Enable();
   }
 
-  Disable() {
+  public Disable() {
     this._input.Disable();
   }
 
-  Update(timeInSeconds: number) {
+  public Update(timeInSeconds: number) {
     if (!this._target) return;
 
     this._inputVelocity.set(0, 0, 0);
-    this._input.canJump = this._canJump;
-    this._input.isHit = this._isHit;
+    this._input.isHit = this.isHit;
     this._stateMachine.Update(this._input);
 
+    this._updateOrientation();
+    this._applyMovement(timeInSeconds);
+    this._applyYaw(timeInSeconds);
+    this._syncVisuals();
+
+    if (this._playerBody.position.length() > 250) {
+      this.ResetPlayer();
+    }
+
+    this._mixer.update(timeInSeconds);
+  }
+
+  private _updateOrientation() {
     // Local "up" is from globe center
     this._localUp
       .set(
@@ -270,49 +243,35 @@ export class CharacterController {
       .applyQuaternion(this._quaternion)
       .projectOnPlane(this._localUp)
       .normalize();
+  }
 
-    let acc = 1;
-    if (this._input._keys.shift) {
-      acc = 3;
-    }
+  private _applyMovement(delta: number) {
+    const { forward, backward, space, shift } = this._input.keys;
+    const acc = shift ? 3 : 1;
 
-    if (this._input._keys.space && this._canJump) {
+    if (space && this._canJump) {
       this._jumpForceDuration = this._jumpForceMaxDuration;
       this._canJump = false;
-      this._input._keys.space = false;
+      this._input.keys.space = false;
     }
+
     if (this._jumpForceDuration > 0) {
-      const forceAmount = this._jumpForceStrength * timeInSeconds;
+      const forceAmount = this._jumpForceStrength * delta;
       const jumpForce = new CANNON.Vec3(
-        this._localUp.x * forceAmount, 
-        this._localUp.y * forceAmount, 
+        this._localUp.x * forceAmount,
+        this._localUp.y * forceAmount,
         this._localUp.z * forceAmount,
       );
       this._playerBody.applyForce(jumpForce, this._playerBody.position);
-      this._jumpForceDuration -= timeInSeconds;
+      this._jumpForceDuration -= delta;
     }
 
-    if (this._input._keys.forward) {
-      this._inputVelocity.addScaledVector(
-        this._localForward,
-        acc * this._velocityFactor * timeInSeconds * 100,
-      );
+    if (forward) {
+      this._inputVelocity.addScaledVector(this._localForward, acc * this._velocityFactor * delta * 100);
     }
 
-    if (this._input._keys.backward) {
-      this._inputVelocity.addScaledVector(
-        this._localForward,
-        -acc * this._velocityFactor * timeInSeconds * 100,
-      );
-    }
-
-    let yaw = 0;
-    if (this._input._keys.left) {
-      yaw = 4.0 * Math.PI * timeInSeconds * 0.25;
-    }
-
-    if (this._input._keys.right) {
-      yaw = -4.0 * Math.PI * timeInSeconds * 0.25;
+    if (backward) {
+      this._inputVelocity.addScaledVector(this._localForward, -acc * this._velocityFactor * delta * 100);
     }
 
     this._playerBody.velocity.x *= 0.8;
@@ -322,38 +281,32 @@ export class CharacterController {
     this._playerBody.velocity.x += this._inputVelocity.x;
     this._playerBody.velocity.y += this._inputVelocity.y;
     this._playerBody.velocity.z += this._inputVelocity.z;
+  }
 
-    // Rebuild orientation to align with globe and apply yaw
-    this._localRight
-      .crossVectors(this._localUp, this._localForward)
-      .normalize();
-    this._correctedForward
-      .crossVectors(this._localRight, this._localUp)
-      .normalize();
+  private _applyYaw(delta: number) {
+    const { left, right } = this._input.keys;
+    let yaw = 0;
+    if (left) yaw = 4 * Math.PI * delta * 0.25;
+    if (right) yaw = -4 * Math.PI * delta * 0.25;
 
-    this._matrix.makeBasis(
-      this._localRight,
-      this._localUp,
-      this._correctedForward,
-    );
+    this._localRight.crossVectors(this._localUp, this._localForward).normalize();
+    this._correctedForward.crossVectors(this._localRight, this._localUp).normalize();
 
+    this._matrix.makeBasis(this._localRight, this._localUp, this._correctedForward);
     this._baseQuat.setFromRotationMatrix(this._matrix);
     this._yawQuat.setFromAxisAngle(this._localUp, yaw).normalize();
-    const resultingQuat = this._baseQuat.premultiply(this._yawQuat);
 
+    const resultQuat = this._baseQuat.premultiply(this._yawQuat);
     this._playerBody.quaternion.set(
-      resultingQuat.x,
-      resultingQuat.y,
-      resultingQuat.z,
-      resultingQuat.w,
+      resultQuat.x,
+      resultQuat.y,
+      resultQuat.z,
+      resultQuat.w,
     );
-    this._target.quaternion.set(
-      this._playerBody.quaternion.x,
-      this._playerBody.quaternion.y,
-      this._playerBody.quaternion.z,
-      this._playerBody.quaternion.w,
-    );
+    this._target.quaternion.copy(resultQuat);
+  }
 
+  private _syncVisuals() {
     this._offset.copy(this._localUp).multiplyScalar(-this._bodyRadius);
     this._playerPosition
       .set(
@@ -363,41 +316,24 @@ export class CharacterController {
       )
       .add(this._offset);
     this._target.position.copy(this._playerPosition);
-
-    if (this._playerBody.position.length() > 250) {
-      this.ResetPlayer();
-    }
-
-    if (this._mixer) {
-      this._mixer.update(timeInSeconds);
-    }
   }
 }
 
 export class CharacterControllerInput {
-  _keys: {
-    forward: boolean;
-    backward: boolean;
-    left: boolean;
-    right: boolean;
-    space: boolean;
-    shift: boolean;
+  private _keys = {
+    forward: false,
+    backward: false,
+    left: false,
+    right: false,
+    space: false,
+    shift: false,
   };
-  canJump: boolean;
-  isHit: boolean;
+
+  isHit = false;
 
   Enable() {
-    this._keys = {
-      forward: false,
-      backward: false,
-      left: false,
-      right: false,
-      space: false,
-      shift: false,
-    };
-    this.canJump = false;
-    document.addEventListener('keydown', e => this._onKeyDown(e), false);
-    document.addEventListener('keyup', e => this._onKeyUp(e), false);
+    document.addEventListener('keydown', this._onKeyDown, false);
+    document.addEventListener('keyup', this._onKeyUp, false);
   }
 
   Disable() {
@@ -409,67 +345,35 @@ export class CharacterControllerInput {
       space: false,
       shift: false,
     };
-    this.canJump = false;
-    document.removeEventListener('keydown', e => this._onKeyDown(e), false);
-    document.removeEventListener('keyup', e => this._onKeyUp(e), false);
+    document.removeEventListener('keydown', this._onKeyDown, false);
+    document.removeEventListener('keyup', this._onKeyUp, false);
   }
 
-  _onKeyDown(e: KeyboardEvent) {
+  private _onKeyDown = (e: KeyboardEvent) => {
     switch (e.code) {
-      // w
-      case 'KeyW':
-        this._keys.forward = true;
-        break;
-      // a
-      case 'KeyA':
-        this._keys.left = true;
-        break;
-      // s
-      case 'KeyS':
-        this._keys.backward = true;
-        break;
-      // d
-      case 'KeyD':
-        this._keys.right = true;
-        break;
-      // space
-      case 'Space':
-        this._keys.space = true;
-        break;
-      // shift
+      case 'KeyW': this._keys.forward = true; break;
+      case 'KeyA': this._keys.left = true; break;
+      case 'KeyS': this._keys.backward = true; break;
+      case 'KeyD': this._keys.right = true; break;
+      case 'Space': this._keys.space = true; break;
       case 'ShiftLeft':
-      case 'ShiftRight':
-        this._keys.shift = true;
-        break;
+      case 'ShiftRight': this._keys.shift = true; break;
     }
-  }
-  _onKeyUp(e: KeyboardEvent) {
+  };
+
+  private _onKeyUp = (e: KeyboardEvent) => {
     switch (e.code) {
-      // w
-      case 'KeyW':
-        this._keys.forward = false;
-        break;
-      // a
-      case 'KeyA':
-        this._keys.left = false;
-        break;
-      // s
-      case 'KeyS':
-        this._keys.backward = false;
-        break;
-      // d
-      case 'KeyD':
-        this._keys.right = false;
-        break;
-      // space
-      case 'Space':
-        this._keys.space = false;
-        break;
-      // shift
+      case 'KeyW': this._keys.forward = false; break;
+      case 'KeyA': this._keys.left = false; break;
+      case 'KeyS': this._keys.backward = false; break;
+      case 'KeyD': this._keys.right = false; break;
+      case 'Space': this._keys.space = false; break;
       case 'ShiftLeft':
-      case 'ShiftRight':
-        this._keys.shift = false;
-        break;
+      case 'ShiftRight': this._keys.shift = false; break;
     }
+  };
+
+  get keys() {
+    return this._keys;
   }
 }

@@ -1,17 +1,23 @@
 import * as THREE from 'three';
 import { CharacterController } from './character';
+interface ThirdPersonCameraParams {
+    camera: THREE.PerspectiveCamera;
+    target: CharacterController;
+}
 export declare class ThirdPersonCamera {
-    _camera: THREE.PerspectiveCamera;
-    _target: CharacterController;
-    _currentPosition: THREE.Vector3;
-    _currentLookat: THREE.Vector3;
-    _idealLookat: THREE.Vector3;
-    _idealOffset: THREE.Vector3;
-    constructor(params: {
-        camera: THREE.PerspectiveCamera;
-        target: CharacterController;
-    });
-    _CalculateIdealOffset(): THREE.Vector3;
-    _CalculateIdealLookat(): THREE.Vector3;
+    private _camera;
+    private _target;
+    private _currentPosition;
+    private _currentLookat;
+    private _idealLookat;
+    private _idealOffset;
+    private _transitionTime;
+    private _transitionDuration;
+    private _transitioning;
+    constructor(params: ThirdPersonCameraParams);
+    startTransition(): void;
+    private _CalculateIdealOffset;
+    private _CalculateIdealLookat;
     Update(timeElapsed: number): void;
 }
+export {};

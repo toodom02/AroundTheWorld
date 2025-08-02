@@ -8,9 +8,10 @@ export class Menu {
   _gameOverElement: HTMLElement;
   _gameOverScore: HTMLElement;
   _musicElement: HTMLAudioElement;
+  _musicControl: HTMLElement;
   _startButton: HTMLElement;
   _restartButton: HTMLElement;
-  showMenu: boolean;
+  _overlay: HTMLElement;
 
   constructor(params: {
     onStart: () => void;
@@ -26,12 +27,19 @@ export class Menu {
     this._gameOverElement = document.getElementById('gameover')!;
     this._gameOverScore = document.getElementById('gameover-score')!;
     this._musicElement = document.getElementById('music') as HTMLAudioElement;
+    this._musicControl = document.getElementById('music-control')!;
     this._startButton = document.getElementById('start-button')!;
     this._restartButton = document.getElementById('restart-button')!;
-    this.showMenu = true;
+    this._overlay = document.getElementById('loading-overlay')!;
+
+    this._musicControl.onclick = () => {
+      this._musicElement.muted = !this._musicElement.muted;
+      this._musicControl.classList.toggle('mute');
+    }
   }
 
   EnableStartMenu() {
+    this._overlay.classList.add('fade-out');
     this._startButton.innerHTML = 'Start';
     this._startButton.classList.add('loaded');
     this._startButton.onclick = () => {

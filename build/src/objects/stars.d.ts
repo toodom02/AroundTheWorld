@@ -1,16 +1,15 @@
 import * as THREE from 'three';
+interface StarsParams {
+    scene: THREE.Scene;
+    atmosphereRadius: number;
+    planetRadius: number;
+}
 export declare class Stars {
-    _params: {
-        scene: THREE.Scene;
-        atmosphereRadius: number;
-        planetRadius: number;
-    };
-    _particlesMesh: THREE.Points;
-    constructor(params: {
-        scene: THREE.Scene;
-        atmosphereRadius: number;
-        planetRadius: number;
-    });
-    _Init(): void;
+    private _params;
+    private _particlesMesh;
+    private constructor();
+    static create(params: StarsParams): Promise<Stars>;
+    private _init;
     animate(): void;
 }
+export {};

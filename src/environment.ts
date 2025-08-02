@@ -4,14 +4,16 @@ import {Ball, Stars, Moon, Planet} from './objects';
 import { Meteor } from './objects/meteor';
 import { CharacterController } from './character';
 
+interface EnvironmentParams {
+  scene: THREE.Scene;
+  world: CANNON.World;
+  groundMaterial: CANNON.Material;
+  planetRadius: number;
+  controller: CharacterController;
+  onGameOver: () => void;
+}
+
 export class Environment {
-  _params: {
-    scene: THREE.Scene;
-    world: CANNON.World;
-    groundMaterial: CANNON.Material;
-    planetRadius: number;
-    controller: CharacterController;
-  };
   _atmosphereRadius: number;
   _ball: Ball;
   _stars: Stars;
@@ -21,33 +23,31 @@ export class Environment {
   _activeMeteors: Map<string, Meteor>;
   _reservedMeteors: Map<string, Meteor>;
   environLoaded: boolean;
-  constructor(params: {
-    scene: THREE.Scene;
-    world: CANNON.World;
-    groundMaterial: CANNON.Material;
-    planetRadius: number;
-    controller: CharacterController;
-  }) {
-    this._params = params;
-    this._Init();
+
+  private constructor(private _params: EnvironmentParams) {}
+
+  public static async create(params: EnvironmentParams): Promise<Environment> {
+    const env = new Environment(params);
+    await env._init();
+    return env;
   }
 
-  _Init() {
-    this.environLoaded = false;
+  private async _init() {
     this._atmosphereRadius = 100;
     this._maxMeteors = 5;
     this._activeMeteors = new Map<string, Meteor>();
     this._reservedMeteors = new Map<string, Meteor>();
-    this._createStars();
-    this._createMoon();
-    this._createPhysicsObject();
-    this._createPlanet();
-    this._initialiseMeteors();
-    this.environLoaded = true;
+    await Promise.all([
+      this._createStars(),
+      this._createMoon(),
+      this._createPhysicsObject(),
+      this._createPlanet(),
+      this._initialiseMeteors(),
+    ]);
   }
 
-  _createPlanet() {
-    this._planet = new Planet({
+  private async _createPlanet() {
+    this._planet = await Planet.create({
       scene: this._params.scene,
       world: this._params.world,
       groundMaterial: this._params.groundMaterial,
@@ -56,8 +56,8 @@ export class Environment {
     });
   }
 
-  _createPhysicsObject() {
-    this._ball = new Ball({
+  private async _createPhysicsObject() {
+    this._ball = await Ball.create({
       scene: this._params.scene,
       world: this._params.world,
       groundMaterial: this._params.groundMaterial,
@@ -65,24 +65,25 @@ export class Environment {
     });
   }
 
-  _initialiseMeteors() {
-    for (let i = 0; i < this._maxMeteors; i++) {
-      const key = (Math.random() + 1).toString(36).substring(7);
-      this._reservedMeteors.set(
-        key,
-        new Meteor({
+  private async _initialiseMeteors() {
+    const meteorPromises = Array.from({ length: this._maxMeteors })
+      .map(async () => {
+        const key = (Math.random() + 1).toString(36).substring(7);
+        const meteor = await Meteor.create({
           key,
           scene: this._params.scene,
           world: this._params.world,
           controller: this._params.controller,
+          onGameOver: this._params.onGameOver,
           atmosphereRadius: this._atmosphereRadius,
           planetRadius: this._params.planetRadius,
           groundMaterial: this._params.groundMaterial,
           activeMeteors: this._activeMeteors,
           reservedMeteors: this._reservedMeteors,
-        })
-      );    
-    }
+        });
+        this._reservedMeteors.set(key, meteor);
+      });
+    await Promise.all(meteorPromises);
   }
 
   _createMeteor() {
@@ -91,14 +92,14 @@ export class Environment {
     meteor.show();
   }
 
-  _createMoon() {
-    this._moon = new Moon({
+  private async _createMoon() {
+    this._moon = await Moon.create({
       scene: this._params.scene,
     });
   }
 
-  _createStars() {
-    this._stars = new Stars({
+  private async _createStars() {
+    this._stars = await Stars.create({
       scene: this._params.scene,
       atmosphereRadius: this._atmosphereRadius,
       planetRadius: this._params.planetRadius,

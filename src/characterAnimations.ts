@@ -83,9 +83,9 @@ class IdleState extends State {
   }
 
   Enter(prevState: State) {
-    const curAction = this._parent._proxy._animations['idle'].action;
+    const curAction = this._parent._proxy.animations['idle'].action;
     if (prevState) {
-      const prevAction = this._parent._proxy._animations[prevState.Name].action;
+      const prevAction = this._parent._proxy.animations[prevState.Name].action;
       curAction.enabled = true;
       curAction.time = 0.0;
       curAction.setEffectiveTimeScale(1.0);
@@ -96,9 +96,9 @@ class IdleState extends State {
   }
 
   Update(input: CharacterControllerInput) {
-    if (input._keys.forward) {
+    if (input.keys.forward) {
       this._parent.SetState('walk');
-    } else if (input._keys.backward) {
+    } else if (input.keys.backward) {
       this._parent.SetState('walkback');
     }
   }
@@ -114,9 +114,9 @@ class WalkState extends State {
   }
 
   Enter(prevState: State) {
-    const curAction = this._parent._proxy._animations['walk'].action;
+    const curAction = this._parent._proxy.animations['walk'].action;
     if (prevState) {
-      const prevAction = this._parent._proxy._animations[prevState.Name].action;
+      const prevAction = this._parent._proxy.animations[prevState.Name].action;
       curAction.enabled = true;
       if (prevState.Name === 'run') {
         // skip ahead in animation so legs are at same point
@@ -136,8 +136,8 @@ class WalkState extends State {
   Exit() {}
 
   Update(input: CharacterControllerInput) {
-    if (input._keys.forward) {
-      if (input._keys.shift) {
+    if (input.keys.forward) {
+      if (input.keys.shift) {
         this._parent.SetState('run');
       }
       return;
@@ -156,9 +156,9 @@ class WalkBackState extends State {
   }
 
   Enter(prevState: State) {
-    const curAction = this._parent._proxy._animations['walkback'].action;
+    const curAction = this._parent._proxy.animations['walkback'].action;
     if (prevState) {
-      const prevAction = this._parent._proxy._animations[prevState.Name].action;
+      const prevAction = this._parent._proxy.animations[prevState.Name].action;
       curAction.enabled = true;
       if (prevState.Name === 'runback') {
         // skip ahead in animation so legs are at same point
@@ -176,8 +176,8 @@ class WalkBackState extends State {
   }
 
   Update(input: CharacterControllerInput) {
-    if (input._keys.backward) {
-      if (input._keys.shift) {
+    if (input.keys.backward) {
+      if (input.keys.shift) {
         this._parent.SetState('runback');
       }
       return;
@@ -197,9 +197,9 @@ class RunState extends State {
   }
 
   Enter(prevState: State) {
-    const curAction = this._parent._proxy._animations['run'].action;
+    const curAction = this._parent._proxy.animations['run'].action;
     if (prevState) {
-      const prevAction = this._parent._proxy._animations[prevState.Name].action;
+      const prevAction = this._parent._proxy.animations[prevState.Name].action;
       curAction.enabled = true;
       if (prevState.Name === 'walk') {
         // skip ahead in animation so legs are at same point
@@ -217,8 +217,8 @@ class RunState extends State {
   }
 
   Update(input: CharacterControllerInput) {
-    if (input._keys.forward) {
-      if (!input._keys.shift) {
+    if (input.keys.forward) {
+      if (!input.keys.shift) {
         this._parent.SetState('walk');
       }
       return;
@@ -237,9 +237,9 @@ class RunBackState extends State {
   }
 
   Enter(prevState: State) {
-    const curAction = this._parent._proxy._animations['runback'].action;
+    const curAction = this._parent._proxy.animations['runback'].action;
     if (prevState) {
-      const prevAction = this._parent._proxy._animations[prevState.Name].action;
+      const prevAction = this._parent._proxy.animations[prevState.Name].action;
       curAction.enabled = true;
       if (prevState.Name === 'walkback') {
         // skip ahead in animation so legs are at same point
@@ -257,8 +257,8 @@ class RunBackState extends State {
   }
 
   Update(input: CharacterControllerInput) {
-    if (input._keys.backward) {
-      if (!input._keys.shift) {
+    if (input.keys.backward) {
+      if (!input.keys.shift) {
         this._parent.SetState('walkback');
       }
       return;
@@ -278,11 +278,11 @@ class DyingState extends State {
   }
 
   Enter(prevState: State) {
-    const curAction = this._parent._proxy._animations['dying'].action;
+    const curAction = this._parent._proxy.animations['dying'].action;
     curAction.reset();
     curAction.stop();
     if (prevState) {
-      const prevAction = this._parent._proxy._animations[prevState.Name].action;
+      const prevAction = this._parent._proxy.animations[prevState.Name].action;
       curAction.enabled = true;
       curAction.time = 0.0;
       curAction.setEffectiveTimeScale(1.0);

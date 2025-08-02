@@ -1,22 +1,19 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-export declare class Planet {
-    _params: {
-        scene: THREE.Scene;
-        world: CANNON.World;
-        groundMaterial: CANNON.Material;
-        planetRadius: number;
-        atmosphereRadius: number;
-    };
-    _planet: THREE.Mesh;
-    _planetBody: CANNON.Body;
-    constructor(params: {
-        scene: THREE.Scene;
-        world: CANNON.World;
-        groundMaterial: CANNON.Material;
-        planetRadius: number;
-        atmosphereRadius: number;
-    });
-    _Init(): void;
-    _LoadModels(): void;
+interface PlanetParams {
+    scene: THREE.Scene;
+    world: CANNON.World;
+    groundMaterial: CANNON.Material;
+    planetRadius: number;
+    atmosphereRadius: number;
 }
+export declare class Planet {
+    private _params;
+    private _planet;
+    private _planetBody;
+    private constructor();
+    static create(params: PlanetParams): Promise<Planet>;
+    private _init;
+    private _loadFBXModel;
+}
+export {};
