@@ -1,68 +1,76 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { CharacterFSM } from './characterAnimations';
 type Animation = {
     readonly action: THREE.AnimationAction;
     readonly clip: THREE.AnimationClip;
 };
 type Animations = Record<string, Animation>;
 export declare class CharacterControllerProxy {
-    _animations: Animations;
-    constructor(animations: {});
+    private _animations;
+    constructor(_animations: Animations);
     get animations(): Animations;
 }
+interface CharacterControllerParams {
+    camera: THREE.Camera;
+    scene: THREE.Scene;
+    world: CANNON.World;
+    groundMaterial: CANNON.Material;
+    initPosition: THREE.Vector3;
+}
 export declare class CharacterController {
-    _params: {
-        camera: THREE.Camera;
-        scene: THREE.Scene;
-        world: CANNON.World;
-        groundMaterial: CANNON.Material;
-        initPosition: THREE.Vector3;
-    };
-    characterLoaded: boolean;
-    _canJump: boolean;
-    _animations: Animations;
-    _input: CharacterControllerInput;
-    _stateMachine: CharacterFSM;
-    _target: THREE.Group;
-    _bodyRadius: number;
-    _playerBody: CANNON.Body;
-    _mixer: THREE.AnimationMixer;
-    _manager: THREE.LoadingManager;
-    _inputVelocity: THREE.Vector3;
-    _forwardVelocity: number;
-    _velocityFactor: number;
-    _localUp: THREE.Vector3;
-    _localForward: THREE.Vector3;
-    _localRight: THREE.Vector3;
-    _correctedForward: THREE.Vector3;
-    _quaternion: THREE.Quaternion;
-    _matrix: THREE.Matrix4;
-    _baseQuat: THREE.Quaternion;
-    _yawQuat: THREE.Quaternion;
-    _offset: THREE.Vector3;
-    _playerPosition: THREE.Vector3;
-    _jumpForceDuration: number;
-    _jumpForceMaxDuration: number;
-    _jumpForceStrength: number;
-    constructor(params: {
-        camera: THREE.Camera;
-        scene: THREE.Scene;
-        world: CANNON.World;
-        groundMaterial: CANNON.Material;
-        initPosition: THREE.Vector3;
-    });
-    _Init(): void;
-    _LoadModels(): void;
-    get Position(): CANNON.Vec3;
+    private _params;
+    static create(params: CharacterControllerParams): Promise<CharacterController>;
+    private _input;
+    private _stateMachine;
+    private _animations;
+    private _mixer;
+    private _target;
+    private _playerBody;
+    private _inputVelocity;
+    private _localUp;
+    private _localForward;
+    private _localRight;
+    private _correctedForward;
+    private _quaternion;
+    private _matrix;
+    private _baseQuat;
+    private _yawQuat;
+    private _offset;
+    private _playerPosition;
+    private _bodyRadius;
+    private _velocityFactor;
+    private _canJump;
+    private _jumpForceDuration;
+    private _jumpForceMaxDuration;
+    private _jumpForceStrength;
+    isHit: boolean;
+    private constructor();
+    private _init;
+    private _initPhysicsBody;
+    private _loadCharacterModel;
+    private _setupPlayerPhysics;
+    private _setupStateMachine;
+    private _loadAnimations;
+    get Position(): THREE.Vector3;
     get Rotation(): THREE.Quaternion;
+    get body(): CANNON.Body;
     ResetPlayer(): void;
     Enable(): void;
     Disable(): void;
     Update(timeInSeconds: number): void;
+    private _updateOrientation;
+    private _applyMovement;
+    private _applyYaw;
+    private _syncVisuals;
 }
 export declare class CharacterControllerInput {
-    _keys: {
+    private _keys;
+    isHit: boolean;
+    Enable(): void;
+    Disable(): void;
+    private _onKeyDown;
+    private _onKeyUp;
+    get keys(): {
         forward: boolean;
         backward: boolean;
         left: boolean;
@@ -70,10 +78,5 @@ export declare class CharacterControllerInput {
         space: boolean;
         shift: boolean;
     };
-    canJump: boolean;
-    Enable(): void;
-    Disable(): void;
-    _onKeyDown(e: KeyboardEvent): void;
-    _onKeyUp(e: KeyboardEvent): void;
 }
 export {};

@@ -1,21 +1,22 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-export declare class Ball {
-    _params: {
-        scene: THREE.Scene;
-        world: CANNON.World;
-        groundMaterial: CANNON.Material;
-        initPosition: THREE.Vector3;
-    };
-    _ball: THREE.Mesh;
-    _ballBody: CANNON.Body;
-    constructor(params: {
-        scene: THREE.Scene;
-        world: CANNON.World;
-        groundMaterial: CANNON.Material;
-        initPosition: THREE.Vector3;
-    });
-    _Init(): void;
-    updatePosition(): void;
-    _reset(): void;
+interface BallParams {
+    scene: THREE.Scene;
+    world: CANNON.World;
+    groundMaterial: CANNON.Material;
+    initPosition: THREE.Vector3;
 }
+export declare class Ball {
+    private _params;
+    private _ball;
+    private _ballBody;
+    private constructor();
+    /**
+     * Asynchronously creates a Ball instance, returning it once fully loaded.
+     */
+    static create(params: BallParams): Promise<Ball>;
+    private _init;
+    updatePosition(): void;
+    private _reset;
+}
+export {};

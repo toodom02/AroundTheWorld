@@ -66880,8 +66880,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   CharacterControllerProxy: () => (/* binding */ CharacterControllerProxy)
 /* harmony export */ });
 /* harmony import */ var three__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(1);
-/* harmony import */ var three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(5);
-/* harmony import */ var cannon_es__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(2);
+/* harmony import */ var three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(5);
+/* harmony import */ var cannon_es__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(2);
 /* harmony import */ var _characterAnimations__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(9);
 
 
@@ -66889,8 +66889,8 @@ __webpack_require__.r(__webpack_exports__);
 
 class CharacterControllerProxy {
     _animations;
-    constructor(animations) {
-        this._animations = animations;
+    constructor(_animations) {
+        this._animations = _animations;
     }
     get animations() {
         return this._animations;
@@ -66898,164 +66898,130 @@ class CharacterControllerProxy {
 }
 class CharacterController {
     _params;
-    characterLoaded;
-    _canJump;
-    _animations;
-    _input;
-    _stateMachine;
-    _target;
-    _bodyRadius;
-    _playerBody;
+    static async create(params) {
+        const controller = new CharacterController(params);
+        await controller._init();
+        return controller;
+    }
+    _input = new CharacterControllerInput();
+    _stateMachine = new _characterAnimations__WEBPACK_IMPORTED_MODULE_0__.CharacterFSM(new CharacterControllerProxy({}));
+    _animations = {};
     _mixer;
-    _manager;
-    _inputVelocity;
-    _forwardVelocity;
-    _velocityFactor;
-    _localUp;
-    _localForward;
-    _localRight;
-    _correctedForward;
-    _quaternion;
-    _matrix;
-    _baseQuat;
-    _yawQuat;
-    _offset;
-    _playerPosition;
-    _jumpForceDuration;
-    _jumpForceMaxDuration;
-    _jumpForceStrength;
-    constructor(params) {
-        this._params = params;
-        this._Init();
+    _target;
+    _playerBody;
+    _inputVelocity = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
+    _localUp = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
+    _localForward = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
+    _localRight = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
+    _correctedForward = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
+    _quaternion = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion();
+    _matrix = new three__WEBPACK_IMPORTED_MODULE_1__.Matrix4();
+    _baseQuat = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion();
+    _yawQuat = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion();
+    _offset = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
+    _playerPosition = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
+    _bodyRadius = 8;
+    _velocityFactor = 1;
+    _canJump = false;
+    _jumpForceDuration = 0;
+    _jumpForceMaxDuration = 0.2;
+    _jumpForceStrength = 5000000;
+    isHit = false;
+    constructor(_params) {
+        this._params = _params;
     }
-    _Init() {
-        this.characterLoaded = false;
-        this._inputVelocity = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
-        this._localUp = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
-        this._localForward = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
-        this._localRight = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
-        this._correctedForward = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
-        this._quaternion = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion();
-        this._matrix = new three__WEBPACK_IMPORTED_MODULE_1__.Matrix4();
-        this._baseQuat = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion();
-        this._yawQuat = new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion();
-        this._offset = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
-        this._playerPosition = new three__WEBPACK_IMPORTED_MODULE_1__.Vector3();
-        this._velocityFactor = 1;
-        this._jumpForceDuration = 0;
-        this._jumpForceMaxDuration = 0.2; // time to apply jump force
-        this._jumpForceStrength = 5000000;
-        this._canJump = false;
-        this._animations = {};
-        this._input = new CharacterControllerInput();
-        this._stateMachine = new _characterAnimations__WEBPACK_IMPORTED_MODULE_0__.CharacterFSM(new CharacterControllerProxy(this._animations));
-        this._LoadModels();
+    async _init() {
+        this._initPhysicsBody();
+        await this._loadCharacterModel();
     }
-    _LoadModels() {
-        const loader = new three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_2__.FBXLoader();
-        loader.setPath('./resources/models/');
-        loader.load('timmy.fbx', fbx => {
-            fbx.scale.setScalar(0.1);
-            fbx.traverse(c => {
-                c.castShadow = true;
-            });
-            fbx.position.copy(this._params.initPosition);
-            this._target = fbx;
-            this._params.scene.add(this._target);
-            // make physics shape
-            const halfHeight = 8;
-            const radius = 2;
-            this._bodyRadius = halfHeight;
-            this._playerBody = new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Body({
-                mass: 100,
-                allowSleep: false,
-                fixedRotation: true,
-                material: this._params.groundMaterial,
-            });
-            // estimate shape by spheres (to support collision with trimesh)
-            const offsets = [
-                new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Vec3(0, -halfHeight + radius, 0),
-                new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Vec3(0, 0, 0),
-                new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Vec3(0, halfHeight - radius, 0),
-            ];
-            for (const offset of offsets) {
-                const sphereShape = new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Sphere(radius);
-                this._playerBody.addShape(sphereShape, offset);
-            }
-            this._playerBody.position.x = fbx.position.x;
-            this._playerBody.position.y = fbx.position.y + this._bodyRadius;
-            this._playerBody.position.z = fbx.position.z;
-            this._params.world.addBody(this._playerBody);
-            this._playerBody.updateMassProperties();
-            // manage animations
-            this._mixer = new three__WEBPACK_IMPORTED_MODULE_1__.AnimationMixer(this._target);
-            this._manager = new three__WEBPACK_IMPORTED_MODULE_1__.LoadingManager();
-            this._manager.onLoad = () => {
-                this._stateMachine.SetState('idle');
-                this.characterLoaded = true;
-            };
-            const _OnLoad = (animName, anim) => {
-                const clip = anim.animations[0];
-                const action = this._mixer.clipAction(clip);
-                this._animations[animName] = {
-                    clip: clip,
-                    action: action,
-                };
-            };
-            const loader = new three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_2__.FBXLoader(this._manager);
-            loader.setPath('./resources/animations/');
-            loader.load('idle.fbx', a => {
-                _OnLoad('idle', a);
-            });
-            loader.load('walk.fbx', a => {
-                _OnLoad('walk', a);
-            });
-            loader.load('run.fbx', a => {
-                _OnLoad('run', a);
-            });
-            loader.load('walkback.fbx', a => {
-                _OnLoad('walkback', a);
-            });
-            loader.load('runback.fbx', a => {
-                _OnLoad('runback', a);
-            });
-            const contactNormal = new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Vec3(); // Normal in the contact, pointing *out* of whatever the player touched
-            const localUp = new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Vec3();
-            this._playerBody.addEventListener('collide', (event) => {
-                const { contact } = event;
-                // contact.bi and contact.bj are the colliding bodies, and contact.ni is the collision normal.
-                // We do not yet know which one is which! Let's check.
-                if (contact.bi.id === this._playerBody.id) {
-                    // bi is the player body, flip the contact normal
-                    contact.ni.negate(contactNormal);
-                }
-                else {
-                    // bi is something else. Keep the normal as it is
-                    contactNormal.copy(contact.ni);
-                }
-                localUp.copy(this._playerBody.position).normalize();
-                if (contactNormal.dot(localUp) > 0.5) {
-                    // Use a "good" threshold value between 0 and 1 here!
-                    this._canJump = true;
-                }
-            });
+    _initPhysicsBody() {
+        this._playerBody = new cannon_es__WEBPACK_IMPORTED_MODULE_2__.Body({
+            mass: 100,
+            allowSleep: false,
+            fixedRotation: true,
+            material: this._params.groundMaterial,
         });
     }
+    async _loadCharacterModel() {
+        const loader = new three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_3__.FBXLoader();
+        loader.setPath('./resources/models/');
+        const fbx = await new Promise((resolve, reject) => {
+            loader.load('timmy.fbx', resolve, undefined, reject);
+        });
+        fbx.scale.setScalar(0.1);
+        fbx.traverse(child => (child.castShadow = true));
+        fbx.position.copy(this._params.initPosition);
+        this._target = fbx;
+        this._params.scene.add(fbx);
+        this._setupPlayerPhysics();
+        await this._setupStateMachine();
+    }
+    _setupPlayerPhysics() {
+        const radius = 2;
+        const offsets = [
+            new cannon_es__WEBPACK_IMPORTED_MODULE_2__.Vec3(0, -this._bodyRadius + radius, 0),
+            new cannon_es__WEBPACK_IMPORTED_MODULE_2__.Vec3(0, 0, 0),
+            new cannon_es__WEBPACK_IMPORTED_MODULE_2__.Vec3(0, this._bodyRadius - radius, 0),
+        ];
+        for (const offset of offsets) {
+            this._playerBody.addShape(new cannon_es__WEBPACK_IMPORTED_MODULE_2__.Sphere(radius), offset);
+        }
+        this._playerBody.position.set(this._target.position.x, this._target.position.y + this._bodyRadius, this._target.position.z);
+        this._params.world.addBody(this._playerBody);
+        this._playerBody.updateMassProperties();
+        const contactNormal = new cannon_es__WEBPACK_IMPORTED_MODULE_2__.Vec3();
+        const localUp = new cannon_es__WEBPACK_IMPORTED_MODULE_2__.Vec3();
+        this._playerBody.addEventListener('collide', (event) => {
+            const { contact } = event;
+            const normal = contact.bi.id === this._playerBody.id
+                ? contact.ni.negate(contactNormal)
+                : contactNormal.copy(contact.ni);
+            localUp.copy(this._playerBody.position).normalize();
+            if (contactNormal.dot(localUp) > 0.5)
+                this._canJump = true;
+        });
+    }
+    async _setupStateMachine() {
+        await this._loadAnimations();
+        this._stateMachine = new _characterAnimations__WEBPACK_IMPORTED_MODULE_0__.CharacterFSM(new CharacterControllerProxy(this._animations));
+        this._stateMachine.SetState('idle');
+        this._mixer.update(0);
+    }
+    async _loadAnimations() {
+        this._mixer = new three__WEBPACK_IMPORTED_MODULE_1__.AnimationMixer(this._target);
+        const loader = new three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_3__.FBXLoader();
+        loader.setPath('./resources/animations/');
+        const animationNames = ['idle', 'walk', 'run', 'walkback', 'runback', 'dying'];
+        const promises = animationNames.map(name => new Promise((resolve, reject) => {
+            loader.load(`${name}.fbx`, anim => {
+                const clip = anim.animations[0];
+                this._animations[name] = {
+                    clip,
+                    action: this._mixer.clipAction(clip),
+                };
+                resolve();
+            }, undefined, reject);
+        }));
+        await Promise.all(promises);
+    }
     get Position() {
-        return this._playerBody.position;
+        return this._target.position;
     }
     get Rotation() {
-        if (!this._target)
-            return new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion();
-        return this._target.quaternion;
+        return this._target?.quaternion ?? new three__WEBPACK_IMPORTED_MODULE_1__.Quaternion();
+    }
+    get body() {
+        return this._playerBody;
     }
     ResetPlayer() {
         this._target.position.copy(this._params.initPosition);
-        this._playerBody.position.x = this._target.position.x;
-        this._playerBody.position.y = this._target.position.y + this._bodyRadius;
-        this._playerBody.position.z = this._target.position.z;
+        this._playerBody.position.set(this._target.position.x, this._target.position.y + this._bodyRadius, this._target.position.z);
         this._playerBody.velocity.set(0, 0, 0);
+        this._playerBody.angularVelocity.set(0, 0, 0);
+        this._playerBody.force.set(0, 0, 0);
         this._target.rotation.set(0, 0, 0);
+        this._stateMachine.SetState('idle');
+        this.isHit = false;
     }
     Enable() {
         this._input.Enable();
@@ -67067,8 +67033,18 @@ class CharacterController {
         if (!this._target)
             return;
         this._inputVelocity.set(0, 0, 0);
-        this._input.canJump = this._canJump;
+        this._input.isHit = this.isHit;
         this._stateMachine.Update(this._input);
+        this._updateOrientation();
+        this._applyMovement(timeInSeconds);
+        this._applyYaw(timeInSeconds);
+        this._syncVisuals();
+        if (this._playerBody.position.length() > 250) {
+            this.ResetPlayer();
+        }
+        this._mixer.update(timeInSeconds);
+    }
+    _updateOrientation() {
         // Local "up" is from globe center
         this._localUp
             .set(this._playerBody.position.x, this._playerBody.position.y, this._playerBody.position.z)
@@ -67081,33 +67057,26 @@ class CharacterController {
             .applyQuaternion(this._quaternion)
             .projectOnPlane(this._localUp)
             .normalize();
-        let acc = 1;
-        if (this._input._keys.shift) {
-            acc = 3;
-        }
-        if (this._input._keys.space && this._canJump) {
+    }
+    _applyMovement(delta) {
+        const { forward, backward, space, shift } = this._input.keys;
+        const acc = shift ? 3 : 1;
+        if (space && this._canJump) {
             this._jumpForceDuration = this._jumpForceMaxDuration;
             this._canJump = false;
-            this._input._keys.space = false;
+            this._input.keys.space = false;
         }
         if (this._jumpForceDuration > 0) {
-            const forceAmount = this._jumpForceStrength * timeInSeconds;
-            const jumpForce = new cannon_es__WEBPACK_IMPORTED_MODULE_3__.Vec3(this._localUp.x * forceAmount, this._localUp.y * forceAmount, this._localUp.z * forceAmount);
+            const forceAmount = this._jumpForceStrength * delta;
+            const jumpForce = new cannon_es__WEBPACK_IMPORTED_MODULE_2__.Vec3(this._localUp.x * forceAmount, this._localUp.y * forceAmount, this._localUp.z * forceAmount);
             this._playerBody.applyForce(jumpForce, this._playerBody.position);
-            this._jumpForceDuration -= timeInSeconds;
+            this._jumpForceDuration -= delta;
         }
-        if (this._input._keys.forward) {
-            this._inputVelocity.addScaledVector(this._localForward, acc * this._velocityFactor * timeInSeconds * 100);
+        if (forward) {
+            this._inputVelocity.addScaledVector(this._localForward, acc * this._velocityFactor * delta * 100);
         }
-        if (this._input._keys.backward) {
-            this._inputVelocity.addScaledVector(this._localForward, -acc * this._velocityFactor * timeInSeconds * 100);
-        }
-        let yaw = 0;
-        if (this._input._keys.left) {
-            yaw = 4.0 * Math.PI * timeInSeconds * 0.25;
-        }
-        if (this._input._keys.right) {
-            yaw = -4.0 * Math.PI * timeInSeconds * 0.25;
+        if (backward) {
+            this._inputVelocity.addScaledVector(this._localForward, -acc * this._velocityFactor * delta * 100);
         }
         this._playerBody.velocity.x *= 0.8;
         this._playerBody.velocity.y *= 0.8;
@@ -67115,47 +67084,44 @@ class CharacterController {
         this._playerBody.velocity.x += this._inputVelocity.x;
         this._playerBody.velocity.y += this._inputVelocity.y;
         this._playerBody.velocity.z += this._inputVelocity.z;
-        // Rebuild orientation to align with globe and apply yaw
-        this._localRight
-            .crossVectors(this._localUp, this._localForward)
-            .normalize();
-        this._correctedForward
-            .crossVectors(this._localRight, this._localUp)
-            .normalize();
+    }
+    _applyYaw(delta) {
+        const { left, right } = this._input.keys;
+        let yaw = 0;
+        if (left)
+            yaw = 4 * Math.PI * delta * 0.25;
+        if (right)
+            yaw = -4 * Math.PI * delta * 0.25;
+        this._localRight.crossVectors(this._localUp, this._localForward).normalize();
+        this._correctedForward.crossVectors(this._localRight, this._localUp).normalize();
         this._matrix.makeBasis(this._localRight, this._localUp, this._correctedForward);
         this._baseQuat.setFromRotationMatrix(this._matrix);
         this._yawQuat.setFromAxisAngle(this._localUp, yaw).normalize();
-        const resultingQuat = this._baseQuat.premultiply(this._yawQuat);
-        this._playerBody.quaternion.set(resultingQuat.x, resultingQuat.y, resultingQuat.z, resultingQuat.w);
-        this._target.quaternion.set(this._playerBody.quaternion.x, this._playerBody.quaternion.y, this._playerBody.quaternion.z, this._playerBody.quaternion.w);
+        const resultQuat = this._baseQuat.premultiply(this._yawQuat);
+        this._playerBody.quaternion.set(resultQuat.x, resultQuat.y, resultQuat.z, resultQuat.w);
+        this._target.quaternion.copy(resultQuat);
+    }
+    _syncVisuals() {
         this._offset.copy(this._localUp).multiplyScalar(-this._bodyRadius);
         this._playerPosition
             .set(this._playerBody.position.x, this._playerBody.position.y, this._playerBody.position.z)
             .add(this._offset);
         this._target.position.copy(this._playerPosition);
-        if (this._playerBody.position.length() > 250) {
-            this.ResetPlayer();
-        }
-        if (this._mixer) {
-            this._mixer.update(timeInSeconds);
-        }
     }
 }
 class CharacterControllerInput {
-    _keys;
-    canJump;
+    _keys = {
+        forward: false,
+        backward: false,
+        left: false,
+        right: false,
+        space: false,
+        shift: false,
+    };
+    isHit = false;
     Enable() {
-        this._keys = {
-            forward: false,
-            backward: false,
-            left: false,
-            right: false,
-            space: false,
-            shift: false,
-        };
-        this.canJump = false;
-        document.addEventListener('keydown', e => this._onKeyDown(e), false);
-        document.addEventListener('keyup', e => this._onKeyUp(e), false);
+        document.addEventListener('keydown', this._onKeyDown, false);
+        document.addEventListener('keyup', this._onKeyUp, false);
     }
     Disable() {
         this._keys = {
@@ -67166,67 +67132,57 @@ class CharacterControllerInput {
             space: false,
             shift: false,
         };
-        this.canJump = false;
-        document.removeEventListener('keydown', e => this._onKeyDown(e), false);
-        document.removeEventListener('keyup', e => this._onKeyUp(e), false);
+        document.removeEventListener('keydown', this._onKeyDown, false);
+        document.removeEventListener('keyup', this._onKeyUp, false);
     }
-    _onKeyDown(e) {
+    _onKeyDown = (e) => {
         switch (e.code) {
-            // w
             case 'KeyW':
                 this._keys.forward = true;
                 break;
-            // a
             case 'KeyA':
                 this._keys.left = true;
                 break;
-            // s
             case 'KeyS':
                 this._keys.backward = true;
                 break;
-            // d
             case 'KeyD':
                 this._keys.right = true;
                 break;
-            // space
             case 'Space':
                 this._keys.space = true;
                 break;
-            // shift
             case 'ShiftLeft':
             case 'ShiftRight':
                 this._keys.shift = true;
                 break;
         }
-    }
-    _onKeyUp(e) {
+    };
+    _onKeyUp = (e) => {
         switch (e.code) {
-            // w
             case 'KeyW':
                 this._keys.forward = false;
                 break;
-            // a
             case 'KeyA':
                 this._keys.left = false;
                 break;
-            // s
             case 'KeyS':
                 this._keys.backward = false;
                 break;
-            // d
             case 'KeyD':
                 this._keys.right = false;
                 break;
-            // space
             case 'Space':
                 this._keys.space = false;
                 break;
-            // shift
             case 'ShiftLeft':
             case 'ShiftRight':
                 this._keys.shift = false;
                 break;
         }
+    };
+    get keys() {
+        return this._keys;
     }
 }
 
@@ -74634,6 +74590,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   CharacterFSM: () => (/* binding */ CharacterFSM)
 /* harmony export */ });
+/* harmony import */ var three__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(1);
+
 class FiniteStateMachine {
     _states;
     _currentState;
@@ -74658,6 +74616,10 @@ class FiniteStateMachine {
         state.Enter(prevState);
     }
     Update(input) {
+        if (input.isHit) {
+            this.SetState('dying');
+            return;
+        }
         if (this._currentState) {
             this._currentState.Update(input);
         }
@@ -74676,6 +74638,7 @@ class CharacterFSM extends FiniteStateMachine {
         this._AddState('run', RunState);
         this._AddState('walkback', WalkBackState);
         this._AddState('runback', RunBackState);
+        this._AddState('dying', DyingState);
     }
 }
 class State {
@@ -74698,9 +74661,9 @@ class IdleState extends State {
         return 'idle';
     }
     Enter(prevState) {
-        const curAction = this._parent._proxy._animations['idle'].action;
+        const curAction = this._parent._proxy.animations['idle'].action;
         if (prevState) {
-            const prevAction = this._parent._proxy._animations[prevState.Name].action;
+            const prevAction = this._parent._proxy.animations[prevState.Name].action;
             curAction.enabled = true;
             curAction.time = 0.0;
             curAction.setEffectiveTimeScale(1.0);
@@ -74710,10 +74673,10 @@ class IdleState extends State {
         curAction.play();
     }
     Update(input) {
-        if (input._keys.forward) {
+        if (input.keys.forward) {
             this._parent.SetState('walk');
         }
-        else if (input._keys.backward) {
+        else if (input.keys.backward) {
             this._parent.SetState('walkback');
         }
     }
@@ -74726,9 +74689,9 @@ class WalkState extends State {
         return 'walk';
     }
     Enter(prevState) {
-        const curAction = this._parent._proxy._animations['walk'].action;
+        const curAction = this._parent._proxy.animations['walk'].action;
         if (prevState) {
-            const prevAction = this._parent._proxy._animations[prevState.Name].action;
+            const prevAction = this._parent._proxy.animations[prevState.Name].action;
             curAction.enabled = true;
             if (prevState.Name === 'run') {
                 // skip ahead in animation so legs are at same point
@@ -74746,8 +74709,8 @@ class WalkState extends State {
     }
     Exit() { }
     Update(input) {
-        if (input._keys.forward) {
-            if (input._keys.shift) {
+        if (input.keys.forward) {
+            if (input.keys.shift) {
                 this._parent.SetState('run');
             }
             return;
@@ -74763,9 +74726,9 @@ class WalkBackState extends State {
         return 'walkback';
     }
     Enter(prevState) {
-        const curAction = this._parent._proxy._animations['walkback'].action;
+        const curAction = this._parent._proxy.animations['walkback'].action;
         if (prevState) {
-            const prevAction = this._parent._proxy._animations[prevState.Name].action;
+            const prevAction = this._parent._proxy.animations[prevState.Name].action;
             curAction.enabled = true;
             if (prevState.Name === 'runback') {
                 // skip ahead in animation so legs are at same point
@@ -74782,8 +74745,8 @@ class WalkBackState extends State {
         curAction.play();
     }
     Update(input) {
-        if (input._keys.backward) {
-            if (input._keys.shift) {
+        if (input.keys.backward) {
+            if (input.keys.shift) {
                 this._parent.SetState('runback');
             }
             return;
@@ -74799,9 +74762,9 @@ class RunState extends State {
         return 'run';
     }
     Enter(prevState) {
-        const curAction = this._parent._proxy._animations['run'].action;
+        const curAction = this._parent._proxy.animations['run'].action;
         if (prevState) {
-            const prevAction = this._parent._proxy._animations[prevState.Name].action;
+            const prevAction = this._parent._proxy.animations[prevState.Name].action;
             curAction.enabled = true;
             if (prevState.Name === 'walk') {
                 // skip ahead in animation so legs are at same point
@@ -74818,8 +74781,8 @@ class RunState extends State {
         curAction.play();
     }
     Update(input) {
-        if (input._keys.forward) {
-            if (!input._keys.shift) {
+        if (input.keys.forward) {
+            if (!input.keys.shift) {
                 this._parent.SetState('walk');
             }
             return;
@@ -74835,9 +74798,9 @@ class RunBackState extends State {
         return 'runback';
     }
     Enter(prevState) {
-        const curAction = this._parent._proxy._animations['runback'].action;
+        const curAction = this._parent._proxy.animations['runback'].action;
         if (prevState) {
-            const prevAction = this._parent._proxy._animations[prevState.Name].action;
+            const prevAction = this._parent._proxy.animations[prevState.Name].action;
             curAction.enabled = true;
             if (prevState.Name === 'walkback') {
                 // skip ahead in animation so legs are at same point
@@ -74854,13 +74817,39 @@ class RunBackState extends State {
         curAction.play();
     }
     Update(input) {
-        if (input._keys.backward) {
-            if (!input._keys.shift) {
+        if (input.keys.backward) {
+            if (!input.keys.shift) {
                 this._parent.SetState('walkback');
             }
             return;
         }
         this._parent.SetState('idle');
+    }
+}
+class DyingState extends State {
+    constructor(parent) {
+        super(parent);
+    }
+    get Name() {
+        return 'dying';
+    }
+    Enter(prevState) {
+        const curAction = this._parent._proxy.animations['dying'].action;
+        curAction.reset();
+        curAction.stop();
+        if (prevState) {
+            const prevAction = this._parent._proxy.animations[prevState.Name].action;
+            curAction.enabled = true;
+            curAction.time = 0.0;
+            curAction.setEffectiveTimeScale(1.0);
+            curAction.setEffectiveWeight(1.0);
+            curAction.crossFadeFrom(prevAction, 0.1, true);
+        }
+        curAction.loop = three__WEBPACK_IMPORTED_MODULE_0__.LoopOnce;
+        curAction.clampWhenFinished = true;
+        curAction.play();
+    }
+    Update(input) {
     }
 }
 
@@ -74882,34 +74871,48 @@ class ThirdPersonCamera {
     _currentLookat;
     _idealLookat;
     _idealOffset;
+    _transitionTime = 0;
+    _transitionDuration = 4;
+    _transitioning = false;
     constructor(params) {
         this._camera = params.camera;
         this._target = params.target;
-        this._currentPosition = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
-        this._currentLookat = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+        this._currentPosition = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3().copy(this._camera.position);
+        this._currentLookat = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3(0, 0, 0);
         this._idealLookat = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
         this._idealOffset = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
     }
+    startTransition() {
+        this._transitionTime = 0;
+        this._transitioning = true;
+    }
     _CalculateIdealOffset() {
-        this._idealOffset.set(-15, 20, -30);
+        this._idealOffset.set(-15, 28, -30);
         this._idealOffset.applyQuaternion(this._target.Rotation);
-        this._idealOffset.add(new three__WEBPACK_IMPORTED_MODULE_0__.Vector3(this._target.Position.x, this._target.Position.y, this._target.Position.z));
+        this._idealOffset.add(this._target.Position);
         return this._idealOffset;
     }
     _CalculateIdealLookat() {
-        this._idealLookat.set(0, 10, 50);
+        this._idealLookat.set(0, 18, 50);
         this._idealLookat.applyQuaternion(this._target.Rotation);
-        this._idealLookat.add(new three__WEBPACK_IMPORTED_MODULE_0__.Vector3(this._target.Position.x, this._target.Position.y, this._target.Position.z));
+        this._idealLookat.add(this._target.Position);
         return this._idealLookat;
     }
     Update(timeElapsed) {
         const idealOffset = this._CalculateIdealOffset();
         const idealLookat = this._CalculateIdealLookat();
-        const t = 1.0 - Math.pow(0.001, timeElapsed);
+        let t = 1.0 - Math.pow(0.001, timeElapsed);
+        if (this._transitioning) {
+            this._transitionTime += timeElapsed;
+            const progress = Math.min(this._transitionTime / this._transitionDuration, 1.0);
+            t = progress;
+            if (progress >= 1.0) {
+                this._transitioning = false;
+            }
+        }
         this._currentPosition.lerp(idealOffset, t);
         this._currentLookat.lerp(idealLookat, t);
-        this._camera.up
-            .set(this._target.Position.x, this._target.Position.y, this._target.Position.z)
+        this._camera.up.copy(this._target.Position)
             .normalize();
         this._camera.position.copy(this._currentPosition);
         this._camera.lookAt(this._currentLookat);
@@ -74925,8 +74928,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   Environment: () => (/* binding */ Environment)
 /* harmony export */ });
-/* harmony import */ var three__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(1);
+/* harmony import */ var three__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(1);
 /* harmony import */ var _objects__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(12);
+/* harmony import */ var _objects_meteor__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(18);
+
 
 
 class Environment {
@@ -74936,22 +74941,33 @@ class Environment {
     _stars;
     _moon;
     _planet;
+    _maxMeteors;
+    _activeMeteors;
+    _reservedMeteors;
     environLoaded;
-    constructor(params) {
-        this._params = params;
-        this._Init();
+    constructor(_params) {
+        this._params = _params;
     }
-    _Init() {
-        this.environLoaded = false;
+    static async create(params) {
+        const env = new Environment(params);
+        await env._init();
+        return env;
+    }
+    async _init() {
         this._atmosphereRadius = 100;
-        this._createStars();
-        this._createMoon();
-        this._createPhysicsObject();
-        this._createPlanet();
-        this.environLoaded = true;
+        this._maxMeteors = 5;
+        this._activeMeteors = new Map();
+        this._reservedMeteors = new Map();
+        await Promise.all([
+            this._createStars(),
+            this._createMoon(),
+            this._createPhysicsObject(),
+            this._createPlanet(),
+            this._initialiseMeteors(),
+        ]);
     }
-    _createPlanet() {
-        this._planet = new _objects__WEBPACK_IMPORTED_MODULE_0__.Planet({
+    async _createPlanet() {
+        this._planet = await _objects__WEBPACK_IMPORTED_MODULE_0__.Planet.create({
             scene: this._params.scene,
             world: this._params.world,
             groundMaterial: this._params.groundMaterial,
@@ -74959,21 +74975,47 @@ class Environment {
             atmosphereRadius: this._atmosphereRadius,
         });
     }
-    _createPhysicsObject() {
-        this._ball = new _objects__WEBPACK_IMPORTED_MODULE_0__.Ball({
+    async _createPhysicsObject() {
+        this._ball = await _objects__WEBPACK_IMPORTED_MODULE_0__.Ball.create({
             scene: this._params.scene,
             world: this._params.world,
             groundMaterial: this._params.groundMaterial,
-            initPosition: new three__WEBPACK_IMPORTED_MODULE_1__.Vector3(5, this._params.planetRadius + 1, 15),
+            initPosition: new three__WEBPACK_IMPORTED_MODULE_2__.Vector3(5, this._params.planetRadius + 1, 15),
         });
     }
-    _createMoon() {
-        this._moon = new _objects__WEBPACK_IMPORTED_MODULE_0__.Moon({
+    async _initialiseMeteors() {
+        const meteorPromises = Array.from({ length: this._maxMeteors })
+            .map(async () => {
+            const key = (Math.random() + 1).toString(36).substring(7);
+            const meteor = await _objects_meteor__WEBPACK_IMPORTED_MODULE_1__.Meteor.create({
+                key,
+                scene: this._params.scene,
+                world: this._params.world,
+                controller: this._params.controller,
+                onGameOver: this._params.onGameOver,
+                atmosphereRadius: this._atmosphereRadius,
+                planetRadius: this._params.planetRadius,
+                groundMaterial: this._params.groundMaterial,
+                activeMeteors: this._activeMeteors,
+                reservedMeteors: this._reservedMeteors,
+            });
+            this._reservedMeteors.set(key, meteor);
+        });
+        await Promise.all(meteorPromises);
+    }
+    _createMeteor() {
+        const [key, meteor] = this._reservedMeteors.entries().next().value ?? [];
+        if (!key || !meteor)
+            return;
+        meteor.show();
+    }
+    async _createMoon() {
+        this._moon = await _objects__WEBPACK_IMPORTED_MODULE_0__.Moon.create({
             scene: this._params.scene,
         });
     }
-    _createStars() {
-        this._stars = new _objects__WEBPACK_IMPORTED_MODULE_0__.Stars({
+    async _createStars() {
+        this._stars = await _objects__WEBPACK_IMPORTED_MODULE_0__.Stars.create({
             scene: this._params.scene,
             atmosphereRadius: this._atmosphereRadius,
             planetRadius: this._params.planetRadius,
@@ -74983,6 +75025,12 @@ class Environment {
         if (this._ball) {
             this._ball.updatePosition();
         }
+        if (this._activeMeteors.size < this._maxMeteors) {
+            this._createMeteor();
+        }
+        this._activeMeteors.forEach(meteor => {
+            meteor.updatePosition();
+        });
     }
     animate() {
         if (this._stars) {
@@ -75032,16 +75080,23 @@ class Ball {
     _params;
     _ball;
     _ballBody;
-    constructor(params) {
-        this._params = params;
-        this._Init();
+    constructor(_params) {
+        this._params = _params;
     }
-    _Init() {
+    /**
+     * Asynchronously creates a Ball instance, returning it once fully loaded.
+     */
+    static async create(params) {
+        const ball = new Ball(params);
+        await ball._init();
+        return ball;
+    }
+    async _init() {
         const radius = 3;
-        const texture = new three__WEBPACK_IMPORTED_MODULE_0__.TextureLoader().load('./resources/ball-texture.png');
-        const ballGeometry = new three__WEBPACK_IMPORTED_MODULE_0__.SphereGeometry(radius);
-        const ballMaterial = new three__WEBPACK_IMPORTED_MODULE_0__.MeshPhongMaterial({ map: texture });
-        this._ball = new three__WEBPACK_IMPORTED_MODULE_0__.Mesh(ballGeometry, ballMaterial);
+        const texture = await new three__WEBPACK_IMPORTED_MODULE_0__.TextureLoader().loadAsync('./resources/ball-texture.png');
+        const geometry = new three__WEBPACK_IMPORTED_MODULE_0__.SphereGeometry(radius);
+        const material = new three__WEBPACK_IMPORTED_MODULE_0__.MeshPhongMaterial({ map: texture });
+        this._ball = new three__WEBPACK_IMPORTED_MODULE_0__.Mesh(geometry, material);
         this._ball.castShadow = true;
         this._ball.receiveShadow = true;
         this._ball.position.copy(this._params.initPosition);
@@ -75057,17 +75112,20 @@ class Ball {
         this._params.world.addBody(this._ballBody);
     }
     updatePosition() {
-        if (this._ball) {
-            this._ball.position.set(this._ballBody.position.x, this._ballBody.position.y, this._ballBody.position.z);
-            this._ball.quaternion.set(this._ballBody.quaternion.x, this._ballBody.quaternion.y, this._ballBody.quaternion.z, this._ballBody.quaternion.w);
-            if (this._ballBody.position.length() > 250) {
-                this._reset();
-            }
+        if (!this._ball || !this._ballBody)
+            return;
+        this._ball.position.set(this._ballBody.position.x, this._ballBody.position.y, this._ballBody.position.z);
+        this._ball.quaternion.set(this._ballBody.quaternion.x, this._ballBody.quaternion.y, this._ballBody.quaternion.z, this._ballBody.quaternion.w);
+        if (this._ballBody.position.length() > 250) {
+            this._reset();
         }
     }
     _reset() {
+        if (!this._ballBody)
+            return;
+        const { x, y, z } = this._params.initPosition;
         this._ballBody.velocity.set(0, 0, 0);
-        this._ballBody.position.set(this._params.initPosition.x, this._params.initPosition.y, this._params.initPosition.z);
+        this._ballBody.position.set(x, y, z);
         this._ballBody.force.set(0, 0, 0);
         this._ballBody.inertia.set(0, 0, 0);
         this._ballBody.angularVelocity.set(0, 0, 0);
@@ -75088,14 +75146,16 @@ __webpack_require__.r(__webpack_exports__);
 class Stars {
     _params;
     _particlesMesh;
-    constructor(params) {
-        this._params = params;
-        this._Init();
+    constructor(_params) {
+        this._params = _params;
     }
-    _Init() {
-        // load textures
-        const loader = new three__WEBPACK_IMPORTED_MODULE_0__.TextureLoader();
-        const star = loader.load('./resources/star.svg');
+    static async create(params) {
+        const stars = new Stars(params);
+        await stars._init();
+        return stars;
+    }
+    async _init() {
+        const star = await new three__WEBPACK_IMPORTED_MODULE_0__.TextureLoader().loadAsync('./resources/star.svg');
         const particlesGeometry = new three__WEBPACK_IMPORTED_MODULE_0__.BufferGeometry();
         const particlescnt = 2500;
         const particlesMaterial = new three__WEBPACK_IMPORTED_MODULE_0__.PointsMaterial({
@@ -75107,16 +75167,12 @@ class Stars {
         for (let i = 0; i < particlescnt * 3; i += 3) {
             // generates values outside of planet
             posArray[i] = (Math.random() - 0.5) * 1000;
-            if (Math.abs(posArray[i]) <
-                this._params.planetRadius + this._params.atmosphereRadius) {
+            if (Math.abs(posArray[i]) < this._params.planetRadius + this._params.atmosphereRadius) {
                 posArray[i + 1] = (Math.random() - 0.5) * 1000;
-                if (Math.abs(posArray[i + 1]) <
-                    this._params.planetRadius + this._params.atmosphereRadius) {
+                if (Math.abs(posArray[i + 1]) < this._params.planetRadius + this._params.atmosphereRadius) {
                     posArray[i + 2] =
                         (Math.random() *
-                            (1000 -
-                                this._params.planetRadius -
-                                this._params.atmosphereRadius) +
+                            (1000 - this._params.planetRadius - this._params.atmosphereRadius) +
                             this._params.planetRadius +
                             this._params.atmosphereRadius) *
                             (Math.random() < 0.5 ? -1 : 1);
@@ -75156,11 +75212,15 @@ class Moon {
     _params;
     _moon;
     _pivotPoint;
-    constructor(params) {
-        this._params = params;
-        this._Init();
+    constructor(_params) {
+        this._params = _params;
     }
-    _Init() {
+    static async create(params) {
+        const moon = new Moon(params);
+        moon._init();
+        return moon;
+    }
+    _init() {
         const moonGeometry = new three__WEBPACK_IMPORTED_MODULE_0__.SphereGeometry(50, 32, 16);
         const moonMaterial = new three__WEBPACK_IMPORTED_MODULE_0__.MeshPhongMaterial({ color: 0x900c3f });
         this._moon = new three__WEBPACK_IMPORTED_MODULE_0__.Mesh(moonGeometry, moonMaterial);
@@ -75187,9 +75247,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   Planet: () => (/* binding */ Planet)
 /* harmony export */ });
-/* harmony import */ var cannon_es__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(2);
-/* harmony import */ var three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5);
-/* harmony import */ var three_to_cannon__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(17);
+/* harmony import */ var cannon_es__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(2);
+/* harmony import */ var three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(5);
+/* harmony import */ var three_to_cannon__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(17);
 
 
 
@@ -75197,36 +75257,45 @@ class Planet {
     _params;
     _planet;
     _planetBody;
-    constructor(params) {
-        this._params = params;
-        this._Init();
+    constructor(_params) {
+        this._params = _params;
     }
-    _Init() {
-        this._LoadModels();
+    static async create(params) {
+        const planet = new Planet(params);
+        await planet._init();
+        return planet;
     }
-    _LoadModels() {
-        const loader = new three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_0__.FBXLoader();
-        loader.setPath('./resources/models/');
-        loader.load('planet.fbx', fbx => {
-            fbx.traverse(c => {
-                c.castShadow = true;
-                c.receiveShadow = true;
-            });
-            fbx.position.set(0, 0, 0);
-            fbx.scale.set(50, 50, 50);
-            fbx.updateMatrixWorld(true);
-            this._params.scene.add(fbx);
-            const cannonConvert = (0,three_to_cannon__WEBPACK_IMPORTED_MODULE_1__.threeToCannon)(fbx, {
-                type: three_to_cannon__WEBPACK_IMPORTED_MODULE_1__.ShapeType.MESH,
-            });
-            const { shape } = cannonConvert ?? {};
-            this._planetBody = new cannon_es__WEBPACK_IMPORTED_MODULE_2__.Body({
-                mass: 0,
-                shape: shape,
-                material: this._params.groundMaterial,
-                position: new cannon_es__WEBPACK_IMPORTED_MODULE_2__.Vec3(fbx.position.x, fbx.position.y, fbx.position.z),
-            });
-            this._params.world.addBody(this._planetBody);
+    async _init() {
+        const fbx = await this._loadFBXModel('planet.fbx');
+        fbx.traverse(child => {
+            child.castShadow = true;
+            child.receiveShadow = true;
+        });
+        fbx.position.set(0, 0, 0);
+        fbx.scale.set(50, 50, 50);
+        fbx.updateMatrixWorld(true);
+        this._params.scene.add(fbx);
+        this._planet = fbx;
+        const cannonShapeResult = (0,three_to_cannon__WEBPACK_IMPORTED_MODULE_0__.threeToCannon)(fbx, {
+            type: three_to_cannon__WEBPACK_IMPORTED_MODULE_0__.ShapeType.MESH,
+        });
+        const shape = cannonShapeResult?.shape;
+        if (!shape) {
+            throw new Error('Failed to create cannon shape from planet model.');
+        }
+        this._planetBody = new cannon_es__WEBPACK_IMPORTED_MODULE_1__.Body({
+            mass: 0,
+            shape,
+            material: this._params.groundMaterial,
+            position: new cannon_es__WEBPACK_IMPORTED_MODULE_1__.Vec3(fbx.position.x, fbx.position.y, fbx.position.z),
+        });
+        this._params.world.addBody(this._planetBody);
+    }
+    _loadFBXModel(path) {
+        return new Promise((resolve, reject) => {
+            const loader = new three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_2__.FBXLoader();
+            loader.setPath('./resources/models/');
+            loader.load(path, model => resolve(model), undefined, error => reject(error));
         });
     }
 }
@@ -76584,6 +76653,155 @@ function getTrimeshParameters(geometry) {
 //# sourceMappingURL=three-to-cannon.modern.js.map
 
 
+/***/ }),
+/* 18 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Meteor: () => (/* binding */ Meteor)
+/* harmony export */ });
+/* harmony import */ var cannon_es__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(2);
+/* harmony import */ var three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5);
+
+
+class Meteor {
+    _params;
+    _mesh;
+    _body;
+    _crash = false;
+    constructor(_params) {
+        this._params = _params;
+    }
+    static async create(params) {
+        const meteor = new Meteor(params);
+        await meteor._init();
+        return meteor;
+    }
+    async _init() {
+        const loader = new three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_0__.FBXLoader();
+        loader.setPath('./resources/models/');
+        const fbx = await new Promise((resolve, reject) => {
+            loader.load('meteor.fbx', resolve, undefined, reject);
+        });
+        fbx.traverse(c => {
+            c.castShadow = true;
+        });
+        const radius = Math.floor(Math.random() * (20 - 5) + 5);
+        const scale = (2 * radius) / 5.5;
+        fbx.scale.set(scale, scale, scale); // original size is ~5.5
+        fbx.updateMatrixWorld(true);
+        this._mesh = fbx;
+        const sphereShape = new cannon_es__WEBPACK_IMPORTED_MODULE_1__.Sphere(radius);
+        this._body = new cannon_es__WEBPACK_IMPORTED_MODULE_1__.Body({
+            mass: 1000,
+            shape: sphereShape,
+            material: this._params.groundMaterial,
+        });
+        this._body.angularVelocity.set(Math.random() * 5 - 1, Math.random() * 5 - 1, Math.random() * 5 - 1);
+    }
+    show() {
+        this._params.reservedMeteors.delete(this._params.key);
+        this._params.activeMeteors.set(this._params.key, this);
+        this._crash = false;
+        const minHeight = this._params.planetRadius + this._params.atmosphereRadius;
+        const maxHeight = 500;
+        const rand = () => (Math.random() > 0.5 ? 1 : -1) *
+            (Math.random() * (maxHeight - minHeight) + minHeight);
+        this._body.position.set(rand(), rand(), rand());
+        this._params.scene.add(this._mesh);
+        this._params.world.addBody(this._body);
+        this._body.addEventListener('collide', (event) => {
+            const { contact } = event;
+            this._crash = true;
+            if (contact.bi.id === this._params.controller.body.id) {
+                this._params.controller.isHit = true;
+                this._params.onGameOver();
+            }
+        });
+    }
+    delete() {
+        this._params.world.removeBody(this._body);
+        this._params.scene.remove(this._mesh);
+        this._body.removeEventListener('collide', () => { });
+        this._params.activeMeteors.delete(this._params.key);
+        this._params.reservedMeteors.set(this._params.key, this);
+    }
+    updatePosition() {
+        if (!this._mesh || !this._body)
+            return;
+        this._mesh.position.set(this._body.position.x, this._body.position.y, this._body.position.z);
+        this._mesh.quaternion.set(this._body.quaternion.x, this._body.quaternion.y, this._body.quaternion.z, this._body.quaternion.w);
+        if (this._body.position.length() > 1000 || this._crash) {
+            this.delete();
+        }
+    }
+}
+
+
+/***/ }),
+/* 19 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Menu: () => (/* binding */ Menu)
+/* harmony export */ });
+class Menu {
+    _params;
+    _scoreElement;
+    _menuElement;
+    _gameOverElement;
+    _gameOverScore;
+    _musicElement;
+    _musicControl;
+    _startButton;
+    _restartButton;
+    _overlay;
+    constructor(params) {
+        this._params = params;
+        this._Init();
+    }
+    _Init() {
+        this._scoreElement = document.getElementById('score');
+        this._menuElement = document.getElementById('menu');
+        this._gameOverElement = document.getElementById('gameover');
+        this._gameOverScore = document.getElementById('gameover-score');
+        this._musicElement = document.getElementById('music');
+        this._musicControl = document.getElementById('music-control');
+        this._startButton = document.getElementById('start-button');
+        this._restartButton = document.getElementById('restart-button');
+        this._overlay = document.getElementById('loading-overlay');
+        this._musicControl.onclick = () => {
+            this._musicElement.muted = !this._musicElement.muted;
+            this._musicControl.classList.toggle('mute');
+        };
+    }
+    EnableStartMenu() {
+        this._overlay.classList.add('fade-out');
+        this._startButton.innerHTML = 'Start';
+        this._startButton.classList.add('loaded');
+        this._startButton.onclick = () => {
+            this._params.onStart();
+            this._PlayMusic();
+            this._menuElement.style.display = 'none';
+        };
+    }
+    ShowGameOver(score) {
+        this._gameOverElement.style.display = 'flex';
+        this._gameOverScore.innerText = score.toString();
+        this._restartButton.onclick = () => {
+            this._params.onRestart();
+            this._gameOverElement.style.display = 'none';
+        };
+    }
+    _PlayMusic() {
+        void this._musicElement.play();
+        this._musicElement.volume = 0.2;
+    }
+}
+
+
 /***/ })
 /******/ 	]);
 /************************************************************************/
@@ -76645,12 +76863,17 @@ var __webpack_exports__ = {};
 // This entry needs to be wrapped in an IIFE because it needs to be isolated against other modules in the chunk.
 (() => {
 __webpack_require__.r(__webpack_exports__);
-/* harmony import */ var three__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(1);
-/* harmony import */ var cannon_es__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(2);
-/* harmony import */ var cannon_es_debugger__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(3);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   World: () => (/* binding */ World)
+/* harmony export */ });
+/* harmony import */ var three__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(1);
+/* harmony import */ var cannon_es__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(2);
+/* harmony import */ var cannon_es_debugger__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(3);
 /* harmony import */ var _character__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(4);
 /* harmony import */ var _camera__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(10);
 /* harmony import */ var _environment__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(11);
+/* harmony import */ var _menu__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(19);
+
 
 
 
@@ -76658,188 +76881,186 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class World {
-    _started;
+    _menu;
+    _started = false;
     _threejs;
     _camera;
     _scene;
     _world;
-    _environ;
-    _previousRAF;
     _controls;
     _thirdPersonCamera;
-    _groundMaterial;
-    _score;
-    _scorediv;
-    _initialMenu;
-    _fireTexture;
-    _planetRadius;
-    _debug;
+    _environ;
     _cannonDebugRenderer;
-    constructor() {
-        this._Init();
+    _groundMaterial;
+    _planetRadius = 100;
+    _previousRAF = 0;
+    _startTime = 0;
+    _debug = false;
+    _fireTexture;
+    static async create() {
+        const world = new World();
+        await world._init();
+        return world;
     }
-    _Init() {
-        this._debug = false;
-        this._fireTexture = new three__WEBPACK_IMPORTED_MODULE_3__.TextureLoader().load('./resources/fire.png');
-        this._initialMenu = true;
-        this._scorediv = document.getElementById('score');
-        this._started = false;
-        this._threejs = new three__WEBPACK_IMPORTED_MODULE_3__.WebGLRenderer();
+    async _init() {
+        this._loadFireTexture();
+        this._initRenderer();
+        this._initCamera();
+        this._initScene();
+        this._initLighting();
+        this._initPhysics();
+        await this._loadPlayer();
+        await this._loadEnvironment();
+        this._thirdPersonCamera = new _camera__WEBPACK_IMPORTED_MODULE_1__.ThirdPersonCamera({
+            camera: this._camera,
+            target: this._controls,
+        });
+        this._initMenu();
+        this._animateMenu();
+    }
+    _loadFireTexture() {
+        const loader = new three__WEBPACK_IMPORTED_MODULE_4__.TextureLoader();
+        this._fireTexture = loader.load('./resources/fire.png');
+    }
+    _initRenderer() {
+        this._threejs = new three__WEBPACK_IMPORTED_MODULE_4__.WebGLRenderer({ antialias: true });
         this._threejs.shadowMap.enabled = true;
-        this._threejs.shadowMap.type = three__WEBPACK_IMPORTED_MODULE_3__.PCFSoftShadowMap;
+        this._threejs.shadowMap.type = three__WEBPACK_IMPORTED_MODULE_4__.PCFSoftShadowMap;
         this._threejs.setPixelRatio(window.devicePixelRatio);
         this._threejs.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this._threejs.domElement);
-        window.addEventListener('resize', () => {
-            this._OnWindowResize();
-        }, false);
-        const fov = 75;
-        const aspect = window.innerWidth / window.innerHeight;
-        const near = 0.1;
-        const far = 750;
-        this._camera = new three__WEBPACK_IMPORTED_MODULE_3__.PerspectiveCamera(fov, aspect, near, far);
+    }
+    _initCamera() {
+        this._camera = new three__WEBPACK_IMPORTED_MODULE_4__.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 750);
         this._camera.position.set(0, 150, 300);
         this._camera.lookAt(0, 0, 0);
-        this._scene = new three__WEBPACK_IMPORTED_MODULE_3__.Scene();
-        const dirLight = new three__WEBPACK_IMPORTED_MODULE_3__.DirectionalLight(0xffffff);
+        window.addEventListener('resize', () => this._onWindowResize());
+    }
+    _initScene() {
+        this._scene = new three__WEBPACK_IMPORTED_MODULE_4__.Scene();
+    }
+    _initLighting() {
+        const dirLight = new three__WEBPACK_IMPORTED_MODULE_4__.DirectionalLight(0xffffff);
         dirLight.position.set(100, 100, 100);
-        dirLight.target.position.set(0, 0, 0);
         dirLight.castShadow = true;
         dirLight.shadow.bias = -0.001;
-        dirLight.shadow.mapSize.width = 2048;
-        dirLight.shadow.mapSize.height = 2048;
-        dirLight.shadow.camera.near = 0.1;
-        dirLight.shadow.camera.far = 500.0;
+        dirLight.shadow.mapSize.set(2048, 2048);
         dirLight.shadow.camera.near = 0.5;
-        dirLight.shadow.camera.far = 500.0;
+        dirLight.shadow.camera.far = 500;
         dirLight.shadow.camera.left = 100;
         dirLight.shadow.camera.right = -100;
         dirLight.shadow.camera.top = 100;
         dirLight.shadow.camera.bottom = -100;
         this._scene.add(dirLight);
-        const ambLight = new three__WEBPACK_IMPORTED_MODULE_3__.AmbientLight(0x202020, 20);
+        const ambLight = new three__WEBPACK_IMPORTED_MODULE_4__.AmbientLight(0x202020, 20);
         this._scene.add(ambLight);
-        // initialise cannon world
-        this._world = new cannon_es__WEBPACK_IMPORTED_MODULE_4__.World();
-        this._cannonDebugRenderer = this._debug
-            ? (0,cannon_es_debugger__WEBPACK_IMPORTED_MODULE_5__["default"])(this._scene, this._world)
-            : undefined;
+    }
+    _initPhysics() {
+        this._world = new cannon_es__WEBPACK_IMPORTED_MODULE_5__.World();
         this._world.gravity.set(0, -1, 0);
+        this._groundMaterial = new cannon_es__WEBPACK_IMPORTED_MODULE_5__.Material('groundMaterial');
+        const contactMaterial = new cannon_es__WEBPACK_IMPORTED_MODULE_5__.ContactMaterial(this._groundMaterial, this._groundMaterial, { friction: 0.4, restitution: 0.3 });
+        this._world.addContactMaterial(contactMaterial);
         this._world.addEventListener('postStep', () => {
-            this._world.bodies.forEach(body => {
+            for (const body of this._world.bodies) {
                 if (body.mass === 0)
-                    return;
-                const gravityForce = new cannon_es__WEBPACK_IMPORTED_MODULE_4__.Vec3().copy(body.position).negate();
-                gravityForce.normalize();
-                gravityForce.scale(300 * body.mass, gravityForce);
+                    continue;
+                const gravityForce = body.position.clone().negate().unit().scale(300 * body.mass);
                 body.applyForce(gravityForce, body.position);
-                body.force.y += body.mass; //cancel out world gravity
-            });
+                body.force.y += body.mass; // negate world gravity
+            }
         });
-        this._groundMaterial = new cannon_es__WEBPACK_IMPORTED_MODULE_4__.Material('groundMaterial');
-        // Adjust constraint equation parameters for ground/ground contact
-        const ground_ground_cm = new cannon_es__WEBPACK_IMPORTED_MODULE_4__.ContactMaterial(this._groundMaterial, this._groundMaterial, {
-            friction: 0.4,
-            restitution: 0.3,
+        if (this._debug) {
+            this._cannonDebugRenderer = (0,cannon_es_debugger__WEBPACK_IMPORTED_MODULE_6__["default"])(this._scene, this._world);
+        }
+    }
+    async _loadPlayer() {
+        this._controls = await _character__WEBPACK_IMPORTED_MODULE_0__.CharacterController.create({
+            camera: this._camera,
+            scene: this._scene,
+            world: this._world,
+            groundMaterial: this._groundMaterial,
+            initPosition: new three__WEBPACK_IMPORTED_MODULE_4__.Vector3(0, this._planetRadius, 0),
         });
-        this._world.addContactMaterial(ground_ground_cm);
-        this._planetRadius = 100;
-        // create eveything in scene/world
-        this._environ = new _environment__WEBPACK_IMPORTED_MODULE_2__.Environment({
+    }
+    async _loadEnvironment() {
+        this._environ = await _environment__WEBPACK_IMPORTED_MODULE_2__.Environment.create({
             scene: this._scene,
             world: this._world,
             groundMaterial: this._groundMaterial,
             planetRadius: this._planetRadius,
+            controller: this._controls,
+            onGameOver: this._GameOver(),
         });
-        this._previousRAF = 0;
-        this._LoadAnimatedModel();
-        this._thirdPersonCamera = new _camera__WEBPACK_IMPORTED_MODULE_1__.ThirdPersonCamera({
-            camera: this._camera,
-            target: this._controls,
+    }
+    _initMenu() {
+        this._menu = new _menu__WEBPACK_IMPORTED_MODULE_3__.Menu({
+            onStart: () => {
+                this._Start();
+                this._started = true;
+                this._animate();
+            },
+            onRestart: () => {
+                this._Start();
+                this._started = true;
+            },
         });
-        this._Start();
-        // const controls = new OrbitControls( this._camera, this._threejs.domElement );
-        this._animateMenu();
+        this._menu.EnableStartMenu();
     }
     _Start() {
-        this._score = 0;
+        this._controls.ResetPlayer();
+        this._startTime = performance.now();
         this._controls.Enable();
+        this._thirdPersonCamera.startTransition();
     }
-    _OnWindowResize() {
+    _GameOver() {
+        return () => {
+            const score = Math.floor((performance.now() - this._startTime) * 0.001);
+            this._controls.Disable();
+            this._menu.ShowGameOver(score);
+        };
+    }
+    _onWindowResize() {
         this._camera.aspect = window.innerWidth / window.innerHeight;
         this._camera.updateProjectionMatrix();
         this._threejs.setSize(window.innerWidth, window.innerHeight);
     }
-    _LoadAnimatedModel() {
-        this._controls = new _character__WEBPACK_IMPORTED_MODULE_0__.CharacterController({
-            camera: this._camera,
-            scene: this._scene,
-            world: this._world,
-            groundMaterial: this._groundMaterial,
-            initPosition: new three__WEBPACK_IMPORTED_MODULE_3__.Vector3(0, this._planetRadius, 0),
-        });
-    }
     _animateMenu() {
-        if (!this._started) {
-            requestAnimationFrame(() => {
-                this._animateMenu();
-                this._environ.animate();
-                this._threejs.render(this._scene, this._camera);
-            });
-            if (this._initialMenu) {
-                // enable start when assets loaded
-                if (this._environ.environLoaded && this._controls.characterLoaded) {
-                    const startButton = document.getElementById('start-button');
-                    startButton.innerHTML = 'Start';
-                    startButton.classList.add('loaded');
-                    startButton.onclick = () => {
-                        if (!_APP)
-                            return;
-                        _APP._started = true;
-                        _APP._animate();
-                        _APP._initialMenu = false;
-                        const audioelem = (document.getElementById('music'));
-                        void audioelem.play();
-                        audioelem.volume = 0.2;
-                        document.getElementById('menu').style.display = 'none';
-                        // document.getElementById('scorediv')!.style.display = 'flex';
-                    };
-                }
-            }
-        }
+        if (this._started)
+            return;
+        requestAnimationFrame(() => {
+            this._animateMenu();
+            this._environ.animate();
+            this._threejs.render(this._scene, this._camera);
+        });
     }
     _animate() {
         if (!this._started)
             return;
         requestAnimationFrame(t => {
-            if (this._previousRAF === null) {
+            if (!this._previousRAF) {
                 this._previousRAF = t;
             }
             this._animate();
+            this._update(t - this._previousRAF);
+            this._previousRAF = t;
             this._environ.animate();
             this._environ.handlePhysicsObjects();
             if (this._debug) {
                 this._cannonDebugRenderer?.update();
             }
             this._threejs.render(this._scene, this._camera);
-            this._Step(t - this._previousRAF);
-            this._previousRAF = t;
         });
     }
-    _Step(timeElapsed) {
-        const timeElapsedS = timeElapsed * 0.001;
-        if (this._controls) {
-            this._controls.Update(timeElapsedS);
-        }
-        if (this._thirdPersonCamera) {
-            this._thirdPersonCamera.Update(timeElapsedS);
-        }
-        this._world.step(1 / 60, timeElapsedS);
+    _update(delta) {
+        const deltaSeconds = delta * 0.001;
+        this._controls?.Update(deltaSeconds);
+        this._thirdPersonCamera?.Update(deltaSeconds);
+        this._world.step(1 / 60, deltaSeconds);
     }
 }
-let _APP = null;
-window.addEventListener('DOMContentLoaded', () => {
-    _APP = new World();
+window.addEventListener('DOMContentLoaded', async () => {
+    await World.create();
 });
 
 })();
