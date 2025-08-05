@@ -1,4 +1,5 @@
-import { CharacterControllerInput, CharacterControllerProxy } from './character';
+import { CharacterControllerProxy } from './character';
+import { CharacterControllerInput } from './characterInput';
 declare class FiniteStateMachine {
     _states: Record<string, typeof State>;
     _currentState: State | null;

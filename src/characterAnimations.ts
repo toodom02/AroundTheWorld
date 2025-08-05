@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import {CharacterControllerInput, CharacterControllerProxy} from './character';
+import { CharacterControllerProxy } from './character';
+import { CharacterControllerInput } from './characterInput';
 
 class FiniteStateMachine {
   _states: Record<string, typeof State>;
