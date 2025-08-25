@@ -21,7 +21,6 @@ export class World {
   private _groundMaterial: CANNON.Material;
   private _planetRadius = 100;
   private _previousRAF = 0;
-  private _startTime = 0;
   private _debug = false;
   private _fireTexture: THREE.Texture;
 
@@ -166,7 +165,6 @@ export class World {
 
   private _Start(): void {
     this._controls.ResetPlayer();
-    this._startTime = performance.now();
     this._controls.Enable();
     this._thirdPersonCamera.startTransition();
     this._environ.startMeteors();
@@ -174,9 +172,8 @@ export class World {
 
   private _GameOver(): () => void {
     return () => {
-      const score = Math.floor((performance.now() - this._startTime) * 0.001);
       this._controls.Disable();
-      this._menu.ShowGameOver(score);
+      this._menu.ShowGameOver(this._environ.score);
       this._environ.stopMeteors();
     }
   }

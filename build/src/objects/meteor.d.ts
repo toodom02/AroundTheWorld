@@ -12,6 +12,7 @@ interface MeteorParams {
     activeMeteors: Map<string, Meteor>;
     reservedMeteors: Map<string, Meteor>;
     onGameOver: () => void;
+    showCoin: (position: THREE.Vector3) => void;
 }
 export declare class Meteor {
     private _params;

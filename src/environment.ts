@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import {Ball, Stars, Moon, Planet} from './objects';
-import { Meteor } from './objects/meteor';
+import {Ball, Stars, Moon, Planet, Meteor, Coin} from './objects';
 import { CharacterController } from './character';
 
 interface EnvironmentParams {
@@ -19,6 +18,9 @@ export class Environment {
   _stars: Stars;
   _moon: Moon;
   _planet: Planet;
+  _activeCoins: Map<string, Coin>;
+  _maxCoins = 20;
+  _reservedCoins: Map<string, Coin>;
   _maxMeteors: number;
   _activeMeteors: Map<string, Meteor>;
   _reservedMeteors: Map<string, Meteor>;
@@ -38,16 +40,24 @@ export class Environment {
   private async _init() {
     this._atmosphereRadius = 100;
     this._maxMeteors = this._initialMeteors;
-    this._maxMeteorsLimit = 20;
     this._activeMeteors = new Map<string, Meteor>();
     this._reservedMeteors = new Map<string, Meteor>();
+    this._activeCoins = new Map<string, Coin>();
+    this._reservedCoins = new Map<string, Coin>();
     await Promise.all([
       this._createStars(),
       this._createMoon(),
       this._createPhysicsObject(),
       this._createPlanet(),
       this._initialiseMeteors(),
+      this._initialiseCoins(),
     ]);
+  }
+
+  public score = 0;
+
+  private addScore(amount: number = 1) {
+    this.score += amount;
   }
 
   private async _createPlanet() {
@@ -104,6 +114,7 @@ export class Environment {
           groundMaterial: this._params.groundMaterial,
           activeMeteors: this._activeMeteors,
           reservedMeteors: this._reservedMeteors,
+          showCoin: this._showCoin.bind(this),
         });
         this._reservedMeteors.set(key, meteor);
       });
@@ -114,6 +125,29 @@ export class Environment {
     const [key, meteor] = this._reservedMeteors.entries().next().value ?? [];
     if (!key || !meteor) return;
     meteor.show();
+  }
+
+  private _showCoin(position: THREE.Vector3) {
+    const [key, coin] = this._reservedCoins.entries().next().value ?? [];
+    if (!key || !coin) return;
+    coin.showCoin(position);
+  }
+
+  private async _initialiseCoins() {
+    const coinPromises = Array.from({ length: this._maxCoins })
+      .map(async () => {
+        const key = (Math.random() + 1).toString(36).substring(7);
+        const coin = await Coin.create({
+          key,
+          scene: this._params.scene,
+          controller: this._params.controller,
+          activeCoins: this._activeCoins,
+          reservedCoins: this._reservedCoins,
+          addScore: this.addScore.bind(this),
+        });
+        this._reservedCoins.set(key, coin);
+      });
+    await Promise.all(coinPromises);
   }
 
   private async _createMoon() {
@@ -142,6 +176,8 @@ export class Environment {
     this._activeMeteors.forEach(meteor => {
       meteor.updatePosition();
     });
+
+    this._activeCoins.forEach(coin => coin.animate());
   }
 
   animate() {
