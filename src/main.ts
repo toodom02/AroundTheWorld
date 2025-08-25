@@ -87,7 +87,7 @@ export class World {
     dirLight.position.set(100, 100, 100);
     dirLight.castShadow = true;
     dirLight.shadow.bias = -0.001;
-    dirLight.shadow.mapSize.set(2048, 2048);
+    dirLight.shadow.mapSize.set(1024, 1024);
     dirLight.shadow.camera.near = 0.5;
     dirLight.shadow.camera.far = 500;
     dirLight.shadow.camera.left = 100;
@@ -169,6 +169,7 @@ export class World {
     this._startTime = performance.now();
     this._controls.Enable();
     this._thirdPersonCamera.startTransition();
+    this._environ.startMeteors();
   }
 
   private _GameOver(): () => void {
@@ -176,6 +177,7 @@ export class World {
       const score = Math.floor((performance.now() - this._startTime) * 0.001);
       this._controls.Disable();
       this._menu.ShowGameOver(score);
+      this._environ.stopMeteors();
     }
   }
 
@@ -222,7 +224,7 @@ export class World {
     this._controls?.Update(deltaSeconds);
     this._thirdPersonCamera?.Update(deltaSeconds);
 
-    this._world.step(1 / 60, deltaSeconds);
+    this._world.step(1 / 60, deltaSeconds, 3);
   }
 }
 

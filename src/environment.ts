@@ -22,7 +22,10 @@ export class Environment {
   _maxMeteors: number;
   _activeMeteors: Map<string, Meteor>;
   _reservedMeteors: Map<string, Meteor>;
-  environLoaded: boolean;
+  _meteorIncreaseInterval = 7500;
+  _meteorIncreaseTimer: number | null = null;
+  _maxMeteorsLimit = 25;
+  _initialMeteors = 5;
 
   private constructor(private _params: EnvironmentParams) {}
 
@@ -34,7 +37,8 @@ export class Environment {
 
   private async _init() {
     this._atmosphereRadius = 100;
-    this._maxMeteors = 5;
+    this._maxMeteors = this._initialMeteors;
+    this._maxMeteorsLimit = 20;
     this._activeMeteors = new Map<string, Meteor>();
     this._reservedMeteors = new Map<string, Meteor>();
     await Promise.all([
@@ -65,8 +69,28 @@ export class Environment {
     });
   }
 
+  public startMeteors() {
+    this._maxMeteors = this._initialMeteors;
+    this._activeMeteors.forEach((meteor, _) => {
+      meteor.delete();
+    });
+
+    this._meteorIncreaseTimer = window.setInterval(() => {
+      if (this._maxMeteors < this._maxMeteorsLimit) {
+        this._maxMeteors++;
+      }
+    }, this._meteorIncreaseInterval);
+  }
+
+  public stopMeteors() {
+    if (this._meteorIncreaseTimer) {
+      clearInterval(this._meteorIncreaseTimer);
+      this._meteorIncreaseTimer = null;
+    }
+  }
+
   private async _initialiseMeteors() {
-    const meteorPromises = Array.from({ length: this._maxMeteors })
+    const meteorPromises = Array.from({ length: this._maxMeteorsLimit })
       .map(async () => {
         const key = (Math.random() + 1).toString(36).substring(7);
         const meteor = await Meteor.create({
@@ -86,7 +110,7 @@ export class Environment {
     await Promise.all(meteorPromises);
   }
 
-  _createMeteor() {
+  private _createMeteor() {
     const [key, meteor] = this._reservedMeteors.entries().next().value ?? [];
     if (!key || !meteor) return;
     meteor.show();

@@ -90,7 +90,7 @@ export class Meteor {
     });
   }
 
-  private delete(): void {
+  public delete(): void {
     this._params.world.removeBody(this._body);
     this._params.scene.remove(this._mesh);
     this._body.removeEventListener('collide', () => {});

@@ -22,7 +22,7 @@ export declare class Meteor {
     static create(params: MeteorParams): Promise<Meteor>;
     private _init;
     show(): void;
-    private delete;
+    delete(): void;
     updatePosition(): void;
 }
 export {};

@@ -75008,7 +75008,10 @@ class Environment {
     _maxMeteors;
     _activeMeteors;
     _reservedMeteors;
-    environLoaded;
+    _meteorIncreaseInterval = 7500;
+    _meteorIncreaseTimer = null;
+    _maxMeteorsLimit = 25;
+    _initialMeteors = 5;
     constructor(_params) {
         this._params = _params;
     }
@@ -75019,7 +75022,8 @@ class Environment {
     }
     async _init() {
         this._atmosphereRadius = 100;
-        this._maxMeteors = 5;
+        this._maxMeteors = this._initialMeteors;
+        this._maxMeteorsLimit = 20;
         this._activeMeteors = new Map();
         this._reservedMeteors = new Map();
         await Promise.all([
@@ -75047,8 +75051,25 @@ class Environment {
             initPosition: new three__WEBPACK_IMPORTED_MODULE_2__.Vector3(5, this._params.planetRadius + 1, 15),
         });
     }
+    startMeteors() {
+        this._maxMeteors = this._initialMeteors;
+        this._activeMeteors.forEach((meteor, _) => {
+            meteor.delete();
+        });
+        this._meteorIncreaseTimer = window.setInterval(() => {
+            if (this._maxMeteors < this._maxMeteorsLimit) {
+                this._maxMeteors++;
+            }
+        }, this._meteorIncreaseInterval);
+    }
+    stopMeteors() {
+        if (this._meteorIncreaseTimer) {
+            clearInterval(this._meteorIncreaseTimer);
+            this._meteorIncreaseTimer = null;
+        }
+    }
     async _initialiseMeteors() {
-        const meteorPromises = Array.from({ length: this._maxMeteors })
+        const meteorPromises = Array.from({ length: this._maxMeteorsLimit })
             .map(async () => {
             const key = (Math.random() + 1).toString(36).substring(7);
             const meteor = await _objects_meteor__WEBPACK_IMPORTED_MODULE_1__.Meteor.create({
@@ -77029,7 +77050,7 @@ class World {
         dirLight.position.set(100, 100, 100);
         dirLight.castShadow = true;
         dirLight.shadow.bias = -0.001;
-        dirLight.shadow.mapSize.set(2048, 2048);
+        dirLight.shadow.mapSize.set(1024, 1024);
         dirLight.shadow.camera.near = 0.5;
         dirLight.shadow.camera.far = 500;
         dirLight.shadow.camera.left = 100;
@@ -77097,12 +77118,14 @@ class World {
         this._startTime = performance.now();
         this._controls.Enable();
         this._thirdPersonCamera.startTransition();
+        this._environ.startMeteors();
     }
     _GameOver() {
         return () => {
             const score = Math.floor((performance.now() - this._startTime) * 0.001);
             this._controls.Disable();
             this._menu.ShowGameOver(score);
+            this._environ.stopMeteors();
         };
     }
     _onWindowResize() {
@@ -77141,7 +77164,7 @@ class World {
         const deltaSeconds = delta * 0.001;
         this._controls?.Update(deltaSeconds);
         this._thirdPersonCamera?.Update(deltaSeconds);
-        this._world.step(1 / 60, deltaSeconds);
+        this._world.step(1 / 60, deltaSeconds, 3);
     }
 }
 window.addEventListener('DOMContentLoaded', async () => {
