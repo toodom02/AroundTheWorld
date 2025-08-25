@@ -12,7 +12,6 @@ export declare class World {
     private _groundMaterial;
     private _planetRadius;
     private _previousRAF;
-    private _startTime;
     private _debug;
     private _fireTexture;
     static create(): Promise<World>;

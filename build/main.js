@@ -74992,10 +74992,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   Environment: () => (/* binding */ Environment)
 /* harmony export */ });
-/* harmony import */ var three__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(1);
+/* harmony import */ var three__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(1);
 /* harmony import */ var _objects__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(14);
-/* harmony import */ var _objects_meteor__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(20);
-
 
 
 class Environment {
@@ -75005,6 +75003,9 @@ class Environment {
     _stars;
     _moon;
     _planet;
+    _activeCoins;
+    _maxCoins = 20;
+    _reservedCoins;
     _maxMeteors;
     _activeMeteors;
     _reservedMeteors;
@@ -75023,16 +75024,22 @@ class Environment {
     async _init() {
         this._atmosphereRadius = 100;
         this._maxMeteors = this._initialMeteors;
-        this._maxMeteorsLimit = 20;
         this._activeMeteors = new Map();
         this._reservedMeteors = new Map();
+        this._activeCoins = new Map();
+        this._reservedCoins = new Map();
         await Promise.all([
             this._createStars(),
             this._createMoon(),
             this._createPhysicsObject(),
             this._createPlanet(),
             this._initialiseMeteors(),
+            this._initialiseCoins(),
         ]);
+    }
+    score = 0;
+    addScore(amount = 1) {
+        this.score += amount;
     }
     async _createPlanet() {
         this._planet = await _objects__WEBPACK_IMPORTED_MODULE_0__.Planet.create({
@@ -75048,7 +75055,7 @@ class Environment {
             scene: this._params.scene,
             world: this._params.world,
             groundMaterial: this._params.groundMaterial,
-            initPosition: new three__WEBPACK_IMPORTED_MODULE_2__.Vector3(5, this._params.planetRadius + 1, 15),
+            initPosition: new three__WEBPACK_IMPORTED_MODULE_1__.Vector3(5, this._params.planetRadius + 1, 15),
         });
     }
     startMeteors() {
@@ -75072,7 +75079,7 @@ class Environment {
         const meteorPromises = Array.from({ length: this._maxMeteorsLimit })
             .map(async () => {
             const key = (Math.random() + 1).toString(36).substring(7);
-            const meteor = await _objects_meteor__WEBPACK_IMPORTED_MODULE_1__.Meteor.create({
+            const meteor = await _objects__WEBPACK_IMPORTED_MODULE_0__.Meteor.create({
                 key,
                 scene: this._params.scene,
                 world: this._params.world,
@@ -75083,6 +75090,7 @@ class Environment {
                 groundMaterial: this._params.groundMaterial,
                 activeMeteors: this._activeMeteors,
                 reservedMeteors: this._reservedMeteors,
+                showCoin: this._showCoin.bind(this),
             });
             this._reservedMeteors.set(key, meteor);
         });
@@ -75093,6 +75101,28 @@ class Environment {
         if (!key || !meteor)
             return;
         meteor.show();
+    }
+    _showCoin(position) {
+        const [key, coin] = this._reservedCoins.entries().next().value ?? [];
+        if (!key || !coin)
+            return;
+        coin.showCoin(position);
+    }
+    async _initialiseCoins() {
+        const coinPromises = Array.from({ length: this._maxCoins })
+            .map(async () => {
+            const key = (Math.random() + 1).toString(36).substring(7);
+            const coin = await _objects__WEBPACK_IMPORTED_MODULE_0__.Coin.create({
+                key,
+                scene: this._params.scene,
+                controller: this._params.controller,
+                activeCoins: this._activeCoins,
+                reservedCoins: this._reservedCoins,
+                addScore: this.addScore.bind(this),
+            });
+            this._reservedCoins.set(key, coin);
+        });
+        await Promise.all(coinPromises);
     }
     async _createMoon() {
         this._moon = await _objects__WEBPACK_IMPORTED_MODULE_0__.Moon.create({
@@ -75116,6 +75146,7 @@ class Environment {
         this._activeMeteors.forEach(meteor => {
             meteor.updatePosition();
         });
+        this._activeCoins.forEach(coin => coin.animate());
     }
     animate() {
         if (this._stars) {
@@ -75136,6 +75167,8 @@ class Environment {
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   Ball: () => (/* reexport safe */ _ball__WEBPACK_IMPORTED_MODULE_0__.Ball),
+/* harmony export */   Coin: () => (/* reexport safe */ _coin__WEBPACK_IMPORTED_MODULE_5__.Coin),
+/* harmony export */   Meteor: () => (/* reexport safe */ _meteor__WEBPACK_IMPORTED_MODULE_4__.Meteor),
 /* harmony export */   Moon: () => (/* reexport safe */ _moon__WEBPACK_IMPORTED_MODULE_2__.Moon),
 /* harmony export */   Planet: () => (/* reexport safe */ _planet__WEBPACK_IMPORTED_MODULE_3__.Planet),
 /* harmony export */   Stars: () => (/* reexport safe */ _stars__WEBPACK_IMPORTED_MODULE_1__.Stars)
@@ -75144,6 +75177,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _stars__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(16);
 /* harmony import */ var _moon__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(17);
 /* harmony import */ var _planet__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(18);
+/* harmony import */ var _meteor__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(20);
+/* harmony import */ var _coin__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(21);
+
+
 
 
 
@@ -76753,8 +76790,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   Meteor: () => (/* binding */ Meteor)
 /* harmony export */ });
+/* harmony import */ var three__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(1);
 /* harmony import */ var cannon_es__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(2);
 /* harmony import */ var three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5);
+
 
 
 class Meteor {
@@ -76804,8 +76843,14 @@ class Meteor {
         this._params.scene.add(this._mesh);
         this._params.world.addBody(this._body);
         this._body.addEventListener('collide', (event) => {
+            if (this._crash)
+                return;
             const { contact } = event;
             this._crash = true;
+            if (contact.bj.mass === 0) { // planet is static
+                const pos = contact.rj.vadd(contact.bj.position);
+                this._params.showCoin(new three__WEBPACK_IMPORTED_MODULE_2__.Vector3(pos.x, pos.y, pos.z));
+            }
             if (contact.bi.id === this._params.controller.body.id) {
                 this._params.controller.isHit = true;
                 this._params.onGameOver();
@@ -76833,6 +76878,80 @@ class Meteor {
 
 /***/ }),
 /* 21 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Coin: () => (/* binding */ Coin)
+/* harmony export */ });
+/* harmony import */ var three__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(1);
+/* harmony import */ var three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(5);
+
+
+class Coin {
+    _params;
+    _mesh;
+    _spinAxis = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3(1, 0, 0);
+    _spinAngle = Math.PI / 180;
+    constructor(_params) {
+        this._params = _params;
+    }
+    static async create(params) {
+        const coin = new Coin(params);
+        await coin._init();
+        return coin;
+    }
+    async _init() {
+        const loader = new three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_1__.FBXLoader();
+        loader.setPath('./resources/models/');
+        const fbx = await new Promise((resolve, reject) => {
+            loader.load('coin.fbx', resolve, undefined, reject);
+        });
+        fbx.traverse(c => {
+            c.castShadow = true;
+            if (c.isMesh) {
+                const mesh = c;
+                if (mesh.material && mesh.material.isMeshPhongMaterial) {
+                    const material = mesh.material;
+                    material.emissiveIntensity = 1;
+                }
+            }
+        });
+        fbx.scale.set(0.1, 0.1, 0.1);
+        fbx.updateMatrixWorld(true);
+        this._mesh = fbx;
+    }
+    showCoin(position) {
+        this._params.reservedCoins.delete(this._params.key);
+        const up = position.clone().normalize();
+        const elevatedPosition = position.clone().add(up.clone().multiplyScalar(10));
+        this._mesh.position.copy(elevatedPosition);
+        const targetQuat = new three__WEBPACK_IMPORTED_MODULE_0__.Quaternion().setFromUnitVectors(new three__WEBPACK_IMPORTED_MODULE_0__.Vector3(1, 0, 0), up);
+        this._mesh.quaternion.copy(targetQuat);
+        this._params.scene.add(this._mesh);
+        this._params.activeCoins.set(this._params.key, this);
+    }
+    _hideCoin() {
+        this._params.activeCoins.delete(this._params.key);
+        this._params.scene.remove(this._mesh);
+        this._params.reservedCoins.set(this._params.key, this);
+    }
+    animate() {
+        this._mesh.rotateOnAxis(this._spinAxis, this._spinAngle);
+        const playerPos = this._params.controller.body.position;
+        const coinPos = this._mesh.position;
+        const dist = coinPos.distanceTo(new three__WEBPACK_IMPORTED_MODULE_0__.Vector3(playerPos.x, playerPos.y, playerPos.z));
+        if (dist < 8) {
+            this._hideCoin();
+            this._params.addScore(1);
+        }
+    }
+}
+
+
+/***/ }),
+/* 22 */
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
@@ -76978,7 +77097,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _character__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(4);
 /* harmony import */ var _camera__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(12);
 /* harmony import */ var _environment__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(13);
-/* harmony import */ var _menu__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(21);
+/* harmony import */ var _menu__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(22);
 
 
 
@@ -77000,7 +77119,6 @@ class World {
     _groundMaterial;
     _planetRadius = 100;
     _previousRAF = 0;
-    _startTime = 0;
     _debug = false;
     _fireTexture;
     static async create() {
@@ -77115,16 +77233,14 @@ class World {
     }
     _Start() {
         this._controls.ResetPlayer();
-        this._startTime = performance.now();
         this._controls.Enable();
         this._thirdPersonCamera.startTransition();
         this._environ.startMeteors();
     }
     _GameOver() {
         return () => {
-            const score = Math.floor((performance.now() - this._startTime) * 0.001);
             this._controls.Disable();
-            this._menu.ShowGameOver(score);
+            this._menu.ShowGameOver(this._environ.score);
             this._environ.stopMeteors();
         };
     }

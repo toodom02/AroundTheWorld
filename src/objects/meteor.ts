@@ -14,6 +14,7 @@ interface MeteorParams {
   activeMeteors: Map<string, Meteor>;
   reservedMeteors: Map<string, Meteor>;
   onGameOver: () => void;
+  showCoin: (position: THREE.Vector3) => void;
 }
 
 export class Meteor {
@@ -80,8 +81,14 @@ export class Meteor {
     this._params.world.addBody(this._body);
 
     this._body.addEventListener('collide', (event: any) => {
+      if (this._crash) return;
       const { contact } = event;
       this._crash = true;
+
+      if (contact.bj.mass === 0) { // planet is static
+        const pos = contact.rj.vadd(contact.bj.position);
+        this._params.showCoin(new THREE.Vector3(pos.x, pos.y, pos.z));
+      }
 
       if (contact.bi.id === this._params.controller.body.id) {
         this._params.controller.isHit = true;
