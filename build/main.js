@@ -75040,6 +75040,7 @@ class Environment {
     score = 0;
     addScore(amount = 1) {
         this.score += amount;
+        this._params.onUpdateScore(this.score);
     }
     async _createPlanet() {
         this._planet = await _objects__WEBPACK_IMPORTED_MODULE_0__.Planet.create({
@@ -75057,6 +75058,13 @@ class Environment {
             groundMaterial: this._params.groundMaterial,
             initPosition: new three__WEBPACK_IMPORTED_MODULE_1__.Vector3(5, this._params.planetRadius + 1, 15),
         });
+    }
+    resetCoins() {
+        this._activeCoins.forEach((coin, _) => {
+            coin.hideCoin();
+        });
+        this.score = 0;
+        this._params.onUpdateScore(this.score);
     }
     startMeteors() {
         this._maxMeteors = this._initialMeteors;
@@ -76894,6 +76902,7 @@ class Coin {
     _mesh;
     _spinAxis = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3(1, 0, 0);
     _spinAngle = Math.PI / 180;
+    _audio;
     constructor(_params) {
         this._params = _params;
     }
@@ -76903,6 +76912,8 @@ class Coin {
         return coin;
     }
     async _init() {
+        this._audio = new Audio('./resources/coin.mp3');
+        this._audio.volume = 0.1;
         const loader = new three_examples_jsm_loaders_FBXLoader__WEBPACK_IMPORTED_MODULE_1__.FBXLoader();
         loader.setPath('./resources/models/');
         const fbx = await new Promise((resolve, reject) => {
@@ -76932,7 +76943,7 @@ class Coin {
         this._params.scene.add(this._mesh);
         this._params.activeCoins.set(this._params.key, this);
     }
-    _hideCoin() {
+    hideCoin() {
         this._params.activeCoins.delete(this._params.key);
         this._params.scene.remove(this._mesh);
         this._params.reservedCoins.set(this._params.key, this);
@@ -76943,7 +76954,9 @@ class Coin {
         const coinPos = this._mesh.position;
         const dist = coinPos.distanceTo(new three__WEBPACK_IMPORTED_MODULE_0__.Vector3(playerPos.x, playerPos.y, playerPos.z));
         if (dist < 8) {
-            this._hideCoin();
+            this._audio.currentTime = 0;
+            this._audio.play();
+            this.hideCoin();
             this._params.addScore(1);
         }
     }
@@ -76961,6 +76974,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 class Menu {
     _params;
+    _scoreContainer;
     _scoreElement;
     _menuElement;
     _gameOverElement;
@@ -76975,6 +76989,7 @@ class Menu {
         this._Init();
     }
     _Init() {
+        this._scoreContainer = document.getElementById('scorediv');
         this._scoreElement = document.getElementById('score');
         this._menuElement = document.getElementById('menu');
         this._gameOverElement = document.getElementById('gameover');
@@ -76997,15 +77012,23 @@ class Menu {
             this._params.onStart();
             this._PlayMusic();
             this._menuElement.style.display = 'none';
+            this._scoreContainer.style.display = 'flex';
         };
     }
     ShowGameOver(score) {
+        this._scoreContainer.style.display = 'none';
         this._gameOverElement.style.display = 'flex';
         this._gameOverScore.innerText = score.toString();
         this._restartButton.onclick = () => {
             this._params.onRestart();
             this._gameOverElement.style.display = 'none';
+            this._scoreContainer.style.display = 'flex';
         };
+    }
+    UpdateScore(score) {
+        if (this._scoreElement) {
+            this._scoreElement.innerText = score.toString();
+        }
     }
     _PlayMusic() {
         void this._musicElement.play();
@@ -77215,6 +77238,7 @@ class World {
             planetRadius: this._planetRadius,
             controller: this._controls,
             onGameOver: this._GameOver(),
+            onUpdateScore: (score) => this._menu.UpdateScore(score),
         });
     }
     _initMenu() {
@@ -77236,6 +77260,7 @@ class World {
         this._controls.Enable();
         this._thirdPersonCamera.startTransition();
         this._environ.startMeteors();
+        this._environ.resetCoins();
     }
     _GameOver() {
         return () => {

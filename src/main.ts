@@ -144,6 +144,7 @@ export class World {
       planetRadius: this._planetRadius,
       controller: this._controls,
       onGameOver: this._GameOver(),
+      onUpdateScore: (score: number) => this._menu.UpdateScore(score),
     });
   }
 
@@ -168,6 +169,7 @@ export class World {
     this._controls.Enable();
     this._thirdPersonCamera.startTransition();
     this._environ.startMeteors();
+    this._environ.resetCoins();
   }
 
   private _GameOver(): () => void {

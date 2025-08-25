@@ -13,11 +13,12 @@ export declare class Coin {
     private _mesh;
     private _spinAxis;
     private _spinAngle;
+    private _audio;
     private constructor();
     static create(params: CoinParams): Promise<Coin>;
     private _init;
     showCoin(position: THREE.Vector3): void;
-    private _hideCoin;
+    hideCoin(): void;
     animate(): void;
 }
 export {};

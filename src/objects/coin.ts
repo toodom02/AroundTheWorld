@@ -15,6 +15,7 @@ export class Coin {
   private _mesh: THREE.Group;
   private _spinAxis = new THREE.Vector3(1, 0, 0);
   private _spinAngle = Math.PI / 180;
+  private _audio: HTMLAudioElement;
 
   private constructor(private _params: CoinParams) {}
 
@@ -25,6 +26,8 @@ export class Coin {
   }
 
   private async _init(): Promise<void> {
+    this._audio = new Audio('./resources/coin.mp3');
+    this._audio.volume = 0.1;
     const loader = new FBXLoader();
     loader.setPath('./resources/models/');
 
@@ -66,7 +69,7 @@ export class Coin {
     this._params.activeCoins.set(this._params.key, this);
   }
 
-  private _hideCoin() {
+  public hideCoin() {
     this._params.activeCoins.delete(this._params.key);
     this._params.scene.remove(this._mesh);
     this._params.reservedCoins.set(this._params.key, this);
@@ -79,7 +82,9 @@ export class Coin {
     const coinPos = this._mesh.position;
     const dist = coinPos.distanceTo(new THREE.Vector3(playerPos.x, playerPos.y, playerPos.z));
     if (dist < 8) {
-      this._hideCoin();
+      this._audio.currentTime = 0;
+      this._audio.play();
+      this.hideCoin();
       this._params.addScore(1);
     }
   }

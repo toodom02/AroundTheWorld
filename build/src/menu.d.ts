@@ -3,6 +3,7 @@ export declare class Menu {
         onStart: () => void;
         onRestart: () => void;
     };
+    _scoreContainer: HTMLElement;
     _scoreElement: HTMLElement;
     _menuElement: HTMLElement;
     _gameOverElement: HTMLElement;
@@ -19,5 +20,6 @@ export declare class Menu {
     _Init(): void;
     EnableStartMenu(): void;
     ShowGameOver(score: number): void;
+    UpdateScore(score: number): void;
     _PlayMusic(): void;
 }

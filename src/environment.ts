@@ -10,6 +10,7 @@ interface EnvironmentParams {
   planetRadius: number;
   controller: CharacterController;
   onGameOver: () => void;
+  onUpdateScore: (score: number) => void;
 }
 
 export class Environment {
@@ -58,6 +59,7 @@ export class Environment {
 
   private addScore(amount: number = 1) {
     this.score += amount;
+    this._params.onUpdateScore(this.score);
   }
 
   private async _createPlanet() {
@@ -77,6 +79,14 @@ export class Environment {
       groundMaterial: this._params.groundMaterial,
       initPosition: new THREE.Vector3(5, this._params.planetRadius + 1, 15),
     });
+  }
+
+  public resetCoins() {
+    this._activeCoins.forEach((coin, _) => {
+      coin.hideCoin();
+    });
+    this.score = 0;
+    this._params.onUpdateScore(this.score);
   }
 
   public startMeteors() {

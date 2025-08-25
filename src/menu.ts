@@ -3,6 +3,7 @@ export class Menu {
     onStart: () => void;
     onRestart: () => void;
   };
+  _scoreContainer: HTMLElement;
   _scoreElement: HTMLElement;
   _menuElement: HTMLElement;
   _gameOverElement: HTMLElement;
@@ -22,6 +23,7 @@ export class Menu {
   }
 
   _Init() {
+    this._scoreContainer = document.getElementById('scorediv')!;
     this._scoreElement = document.getElementById('score')!;
     this._menuElement = document.getElementById('menu')!;
     this._gameOverElement = document.getElementById('gameover')!;
@@ -46,15 +48,24 @@ export class Menu {
       this._params.onStart();
       this._PlayMusic();
       this._menuElement.style.display = 'none';
+      this._scoreContainer.style.display = 'flex';
     }
   }
 
   ShowGameOver(score: number) {
+    this._scoreContainer.style.display = 'none';
     this._gameOverElement.style.display = 'flex';
     this._gameOverScore.innerText = score.toString();
     this._restartButton.onclick = () => {
       this._params.onRestart();
       this._gameOverElement.style.display = 'none';
+      this._scoreContainer.style.display = 'flex';
+    }
+  }
+
+  UpdateScore(score: number) {
+    if (this._scoreElement) {
+      this._scoreElement.innerText = score.toString();
     }
   }
 

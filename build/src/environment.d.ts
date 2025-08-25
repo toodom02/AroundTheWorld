@@ -9,6 +9,7 @@ interface EnvironmentParams {
     planetRadius: number;
     controller: CharacterController;
     onGameOver: () => void;
+    onUpdateScore: (score: number) => void;
 }
 export declare class Environment {
     private _params;
@@ -34,6 +35,7 @@ export declare class Environment {
     private addScore;
     private _createPlanet;
     private _createPhysicsObject;
+    resetCoins(): void;
     startMeteors(): void;
     stopMeteors(): void;
     private _initialiseMeteors;
