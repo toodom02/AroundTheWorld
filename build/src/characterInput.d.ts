@@ -1,5 +1,5 @@
 export declare class CharacterControllerInput {
-    private _keys;
+    private _move;
     private _joystick;
     isHit: boolean;
     private _showJoystick;
@@ -8,12 +8,12 @@ export declare class CharacterControllerInput {
     Disable(): void;
     private _onKeyDown;
     private _onKeyUp;
-    get keys(): {
-        forward: boolean;
-        backward: boolean;
-        left: boolean;
-        right: boolean;
-        space: boolean;
-        shift: boolean;
+    get move(): {
+        forward: number;
+        backward: number;
+        left: number;
+        right: number;
+        run: number;
+        jump: boolean;
     };
 }

@@ -54,7 +54,7 @@ export class CharacterController {
   private _playerPosition = new THREE.Vector3();
 
   private _bodyRadius = 8;
-  private _velocityFactor = 1;
+  private _velocityFactor = 1.5;
   private _canJump = false;
   private _jumpForceDuration = 0;
   private _jumpForceMaxDuration = 0.2;
@@ -247,13 +247,13 @@ export class CharacterController {
   }
 
   private _applyMovement(delta: number) {
-    const { forward, backward, space, shift } = this._input.keys;
-    const acc = shift ? 3 : 1;
+    const { forward, backward, run, jump } = this._input.move;
+    const acc = run ? 3 : 1;
 
-    if (space && this._canJump) {
+    if (jump && this._canJump) {
       this._jumpForceDuration = this._jumpForceMaxDuration;
       this._canJump = false;
-      this._input.keys.space = false;
+      this._input.move.jump = false;
     }
 
     if (this._jumpForceDuration > 0) {
@@ -267,12 +267,12 @@ export class CharacterController {
       this._jumpForceDuration -= delta;
     }
 
-    if (forward) {
-      this._inputVelocity.addScaledVector(this._localForward, acc * this._velocityFactor * delta * 100);
-    }
-
-    if (backward) {
-      this._inputVelocity.addScaledVector(this._localForward, -acc * this._velocityFactor * delta * 100);
+    const moveAmount = (forward - backward);
+    if (Math.abs(moveAmount) > 0.01) {
+      this._inputVelocity.addScaledVector(
+        this._localForward,
+        moveAmount * acc * this._velocityFactor * delta * 100
+      );
     }
 
     this._playerBody.velocity.x *= 0.8;
@@ -285,10 +285,8 @@ export class CharacterController {
   }
 
   private _applyYaw(delta: number) {
-    const { left, right } = this._input.keys;
-    let yaw = 0;
-    if (left) yaw = 4 * Math.PI * delta * 0.25;
-    if (right) yaw = -4 * Math.PI * delta * 0.25;
+    const { left, right } = this._input.move;
+    let yaw = (left - right) * Math.PI * delta;
 
     this._localRight.crossVectors(this._localUp, this._localForward).normalize();
     this._correctedForward.crossVectors(this._localRight, this._localUp).normalize();

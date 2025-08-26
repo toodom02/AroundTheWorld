@@ -1,14 +1,7 @@
 import * as nipplejs from 'nipplejs';
 
 export class CharacterControllerInput {
-  private _keys = {
-    forward: false,
-    backward: false,
-    left: false,
-    right: false,
-    space: false,
-    shift: false,
-  };
+  private _move = { forward: 0, backward: 0, left: 0, right: 0, run: 0, jump: false };
   private _joystick: nipplejs.JoystickManager | null = null;
 
   isHit = false;
@@ -18,24 +11,19 @@ export class CharacterControllerInput {
     this._joystick = nipplejs.create({
       zone: document.getElementById('joystick')!,
     });
-    this._joystick.on('move',  (_: nipplejs.EventData, output: nipplejs.JoystickOutputData) => {
-      this._keys.forward = output.angle.degree >= 25 && output.angle.degree <= 155;
-      this._keys.backward = output.angle.degree <= 335 && output.angle.degree >= 205;
-      this._keys.left = output.angle.degree >= 115 && output.angle.degree <= 245;
-      this._keys.right = output.angle.degree <= 65 || output.angle.degree >= 295;
-      this._keys.shift = output.distance >= 50;
+    this._joystick.on('move', (_: nipplejs.EventData, output: nipplejs.JoystickOutputData) => {
+      const rad = output.angle.radian;
+      const dist = output.distance / 50;
+      this._move.forward = Math.max(0, Math.sin(rad));
+      this._move.backward = Math.max(0, -Math.sin(rad));
+      this._move.left = Math.max(0, -Math.cos(rad));
+      this._move.right = Math.max(0, Math.cos(rad));
+      this._move.run = dist > 0.7 ? 1 : 0;
     });
 
-    this._joystick.on('end',  () => {
-      this._keys = {
-        forward: false,
-        backward: false,
-        left: false,
-        right: false,
-        space: false,
-        shift: false,
-      };
-    })
+    this._joystick.on('end', () => {
+      this._move = { forward: 0, backward: 0, left: 0, right: 0, run: 0, jump: false };
+    });
   }
 
   private _hideJoystick() {
@@ -55,41 +43,34 @@ export class CharacterControllerInput {
     this._hideJoystick();
     document.removeEventListener('keydown', this._onKeyDown, false);
     document.removeEventListener('keyup', this._onKeyUp, false);
-    this._keys = {
-      forward: false,
-      backward: false,
-      left: false,
-      right: false,
-      space: false,
-      shift: false,
-    };
+    this._move = { forward: 0, backward: 0, left: 0, right: 0, run: 0, jump: false };
   }
 
   private _onKeyDown = (e: KeyboardEvent) => {
     switch (e.code) {
-      case 'KeyW': this._keys.forward = true; break;
-      case 'KeyA': this._keys.left = true; break;
-      case 'KeyS': this._keys.backward = true; break;
-      case 'KeyD': this._keys.right = true; break;
-      case 'Space': this._keys.space = true; break;
+      case 'KeyW': this._move.forward = 1; break;
+      case 'KeyA': this._move.left = 1; break;
+      case 'KeyS': this._move.backward = 1; break;
+      case 'KeyD': this._move.right = 1; break;
+      case 'Space': this._move.jump = true; break;
       case 'ShiftLeft':
-      case 'ShiftRight': this._keys.shift = true; break;
+      case 'ShiftRight': this._move.run = 1; break;
     }
   };
 
   private _onKeyUp = (e: KeyboardEvent) => {
     switch (e.code) {
-      case 'KeyW': this._keys.forward = false; break;
-      case 'KeyA': this._keys.left = false; break;
-      case 'KeyS': this._keys.backward = false; break;
-      case 'KeyD': this._keys.right = false; break;
-      case 'Space': this._keys.space = false; break;
+      case 'KeyW': this._move.forward = 0; break;
+      case 'KeyA': this._move.left = 0; break;
+      case 'KeyS': this._move.backward = 0; break;
+      case 'KeyD': this._move.right = 0; break;
+      case 'Space': this._move.jump = false; break;
       case 'ShiftLeft':
-      case 'ShiftRight': this._keys.shift = false; break;
+      case 'ShiftRight': this._move.run = 0; break;
     }
   };
 
-  get keys() {
-    return this._keys;
+  get move() {
+    return this._move;
   }
 }

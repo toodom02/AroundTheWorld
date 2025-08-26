@@ -66925,7 +66925,7 @@ class CharacterController {
     _offset = new three__WEBPACK_IMPORTED_MODULE_2__.Vector3();
     _playerPosition = new three__WEBPACK_IMPORTED_MODULE_2__.Vector3();
     _bodyRadius = 8;
-    _velocityFactor = 1;
+    _velocityFactor = 1.5;
     _canJump = false;
     _jumpForceDuration = 0;
     _jumpForceMaxDuration = 0.2;
@@ -67063,12 +67063,12 @@ class CharacterController {
             .normalize();
     }
     _applyMovement(delta) {
-        const { forward, backward, space, shift } = this._input.keys;
-        const acc = shift ? 3 : 1;
-        if (space && this._canJump) {
+        const { forward, backward, run, jump } = this._input.move;
+        const acc = run ? 3 : 1;
+        if (jump && this._canJump) {
             this._jumpForceDuration = this._jumpForceMaxDuration;
             this._canJump = false;
-            this._input.keys.space = false;
+            this._input.move.jump = false;
         }
         if (this._jumpForceDuration > 0) {
             const forceAmount = this._jumpForceStrength * delta;
@@ -67076,11 +67076,9 @@ class CharacterController {
             this._playerBody.applyForce(jumpForce, this._playerBody.position);
             this._jumpForceDuration -= delta;
         }
-        if (forward) {
-            this._inputVelocity.addScaledVector(this._localForward, acc * this._velocityFactor * delta * 100);
-        }
-        if (backward) {
-            this._inputVelocity.addScaledVector(this._localForward, -acc * this._velocityFactor * delta * 100);
+        const moveAmount = (forward - backward);
+        if (Math.abs(moveAmount) > 0.01) {
+            this._inputVelocity.addScaledVector(this._localForward, moveAmount * acc * this._velocityFactor * delta * 100);
         }
         this._playerBody.velocity.x *= 0.8;
         this._playerBody.velocity.y *= 0.8;
@@ -67090,12 +67088,8 @@ class CharacterController {
         this._playerBody.velocity.z += this._inputVelocity.z;
     }
     _applyYaw(delta) {
-        const { left, right } = this._input.keys;
-        let yaw = 0;
-        if (left)
-            yaw = 4 * Math.PI * delta * 0.25;
-        if (right)
-            yaw = -4 * Math.PI * delta * 0.25;
+        const { left, right } = this._input.move;
+        let yaw = (left - right) * Math.PI * delta;
         this._localRight.crossVectors(this._localUp, this._localForward).normalize();
         this._correctedForward.crossVectors(this._localRight, this._localUp).normalize();
         this._matrix.makeBasis(this._localRight, this._localUp, this._correctedForward);
@@ -74606,10 +74600,10 @@ class IdleState extends State {
         curAction.play();
     }
     Update(input) {
-        if (input.keys.forward) {
+        if (input.move.forward) {
             this._parent.SetState('walk');
         }
-        else if (input.keys.backward) {
+        else if (input.move.backward) {
             this._parent.SetState('walkback');
         }
     }
@@ -74642,8 +74636,8 @@ class WalkState extends State {
     }
     Exit() { }
     Update(input) {
-        if (input.keys.forward) {
-            if (input.keys.shift) {
+        if (input.move.forward) {
+            if (input.move.run) {
                 this._parent.SetState('run');
             }
             return;
@@ -74678,8 +74672,8 @@ class WalkBackState extends State {
         curAction.play();
     }
     Update(input) {
-        if (input.keys.backward) {
-            if (input.keys.shift) {
+        if (input.move.backward) {
+            if (input.move.run) {
                 this._parent.SetState('runback');
             }
             return;
@@ -74714,8 +74708,8 @@ class RunState extends State {
         curAction.play();
     }
     Update(input) {
-        if (input.keys.forward) {
-            if (!input.keys.shift) {
+        if (input.move.forward) {
+            if (!input.move.run) {
                 this._parent.SetState('walk');
             }
             return;
@@ -74750,8 +74744,8 @@ class RunBackState extends State {
         curAction.play();
     }
     Update(input) {
-        if (input.keys.backward) {
-            if (!input.keys.shift) {
+        if (input.move.backward) {
+            if (!input.move.run) {
                 this._parent.SetState('walkback');
             }
             return;
@@ -74800,14 +74794,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var nipplejs__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(nipplejs__WEBPACK_IMPORTED_MODULE_0__);
 
 class CharacterControllerInput {
-    _keys = {
-        forward: false,
-        backward: false,
-        left: false,
-        right: false,
-        space: false,
-        shift: false,
-    };
+    _move = { forward: 0, backward: 0, left: 0, right: 0, run: 0, jump: false };
     _joystick = null;
     isHit = false;
     _showJoystick() {
@@ -74817,21 +74804,16 @@ class CharacterControllerInput {
             zone: document.getElementById('joystick'),
         });
         this._joystick.on('move', (_, output) => {
-            this._keys.forward = output.angle.degree >= 25 && output.angle.degree <= 155;
-            this._keys.backward = output.angle.degree <= 335 && output.angle.degree >= 205;
-            this._keys.left = output.angle.degree >= 115 && output.angle.degree <= 245;
-            this._keys.right = output.angle.degree <= 65 || output.angle.degree >= 295;
-            this._keys.shift = output.distance >= 50;
+            const rad = output.angle.radian;
+            const dist = output.distance / 50;
+            this._move.forward = Math.max(0, Math.sin(rad));
+            this._move.backward = Math.max(0, -Math.sin(rad));
+            this._move.left = Math.max(0, -Math.cos(rad));
+            this._move.right = Math.max(0, Math.cos(rad));
+            this._move.run = dist > 0.7 ? 1 : 0;
         });
         this._joystick.on('end', () => {
-            this._keys = {
-                forward: false,
-                backward: false,
-                left: false,
-                right: false,
-                space: false,
-                shift: false,
-            };
+            this._move = { forward: 0, backward: 0, left: 0, right: 0, run: 0, jump: false };
         });
     }
     _hideJoystick() {
@@ -74849,63 +74831,56 @@ class CharacterControllerInput {
         this._hideJoystick();
         document.removeEventListener('keydown', this._onKeyDown, false);
         document.removeEventListener('keyup', this._onKeyUp, false);
-        this._keys = {
-            forward: false,
-            backward: false,
-            left: false,
-            right: false,
-            space: false,
-            shift: false,
-        };
+        this._move = { forward: 0, backward: 0, left: 0, right: 0, run: 0, jump: false };
     }
     _onKeyDown = (e) => {
         switch (e.code) {
             case 'KeyW':
-                this._keys.forward = true;
+                this._move.forward = 1;
                 break;
             case 'KeyA':
-                this._keys.left = true;
+                this._move.left = 1;
                 break;
             case 'KeyS':
-                this._keys.backward = true;
+                this._move.backward = 1;
                 break;
             case 'KeyD':
-                this._keys.right = true;
+                this._move.right = 1;
                 break;
             case 'Space':
-                this._keys.space = true;
+                this._move.jump = true;
                 break;
             case 'ShiftLeft':
             case 'ShiftRight':
-                this._keys.shift = true;
+                this._move.run = 1;
                 break;
         }
     };
     _onKeyUp = (e) => {
         switch (e.code) {
             case 'KeyW':
-                this._keys.forward = false;
+                this._move.forward = 0;
                 break;
             case 'KeyA':
-                this._keys.left = false;
+                this._move.left = 0;
                 break;
             case 'KeyS':
-                this._keys.backward = false;
+                this._move.backward = 0;
                 break;
             case 'KeyD':
-                this._keys.right = false;
+                this._move.right = 0;
                 break;
             case 'Space':
-                this._keys.space = false;
+                this._move.jump = false;
                 break;
             case 'ShiftLeft':
             case 'ShiftRight':
-                this._keys.shift = false;
+                this._move.run = 0;
                 break;
         }
     };
-    get keys() {
-        return this._keys;
+    get move() {
+        return this._move;
     }
 }
 

@@ -97,9 +97,9 @@ class IdleState extends State {
   }
 
   Update(input: CharacterControllerInput) {
-    if (input.keys.forward) {
+    if (input.move.forward) {
       this._parent.SetState('walk');
-    } else if (input.keys.backward) {
+    } else if (input.move.backward) {
       this._parent.SetState('walkback');
     }
   }
@@ -137,8 +137,8 @@ class WalkState extends State {
   Exit() {}
 
   Update(input: CharacterControllerInput) {
-    if (input.keys.forward) {
-      if (input.keys.shift) {
+    if (input.move.forward) {
+      if (input.move.run) {
         this._parent.SetState('run');
       }
       return;
@@ -177,8 +177,8 @@ class WalkBackState extends State {
   }
 
   Update(input: CharacterControllerInput) {
-    if (input.keys.backward) {
-      if (input.keys.shift) {
+    if (input.move.backward) {
+      if (input.move.run) {
         this._parent.SetState('runback');
       }
       return;
@@ -218,8 +218,8 @@ class RunState extends State {
   }
 
   Update(input: CharacterControllerInput) {
-    if (input.keys.forward) {
-      if (!input.keys.shift) {
+    if (input.move.forward) {
+      if (!input.move.run) {
         this._parent.SetState('walk');
       }
       return;
@@ -258,8 +258,8 @@ class RunBackState extends State {
   }
 
   Update(input: CharacterControllerInput) {
-    if (input.keys.backward) {
-      if (!input.keys.shift) {
+    if (input.move.backward) {
+      if (!input.move.run) {
         this._parent.SetState('walkback');
       }
       return;
