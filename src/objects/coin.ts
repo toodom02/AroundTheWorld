@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { CharacterController } from '../character';
 
 interface CoinParams {
@@ -80,8 +80,12 @@ export class Coin {
 
     const playerPos = this._params.controller.body.position;
     const coinPos = this._mesh.position;
-    const dist = coinPos.distanceTo(new THREE.Vector3(playerPos.x, playerPos.y, playerPos.z));
-    if (dist < 8) {
+    const dx = coinPos.x - playerPos.x;
+    const dy = coinPos.y - playerPos.y;
+    const dz = coinPos.z - playerPos.z;
+    const distSq = dx * dx + dy * dy + dz * dz;
+    const threshold = 8 * 8;
+    if (distSq < threshold) {
       this._audio.currentTime = 0;
       this._audio.play();
       this.hideCoin();

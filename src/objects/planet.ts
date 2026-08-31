@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { ShapeType, threeToCannon } from 'three-to-cannon';
 
 interface PlanetParams {
@@ -67,9 +67,9 @@ export class Planet {
       loader.setPath('./resources/models/');
       loader.load(
         path,
-        model => resolve(model),
+        (model: THREE.Group) => resolve(model),
         undefined,
-        error => reject(error),
+        (error: unknown) => reject(error),
       );
     });
   }

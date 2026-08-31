@@ -1,14 +1,15 @@
 {
   "extends": "./node_modules/gts/tsconfig-google.json",
   "compilerOptions": {
-    "lib": ["dom"],
+    "lib": ["dom", "es2023"],
     "rootDir": ".",
     "outDir": "build",
-    "module": "es6",
-    "moduleResolution": "node",
+    "module": "ES2020",
+    "moduleResolution": "bundler",
     "strictPropertyInitialization": false,
+    "allowSyntheticDefaultImports": true
   },
   "include": [
-    "src/**/*.ts",
+    "src/**/*.ts"
   ]
 }

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { CharacterController } from '../character';
 
 interface MeteorParams {
@@ -21,6 +21,7 @@ export class Meteor {
   private _mesh: THREE.Group;
   private _body: CANNON.Body;
   private _crash = false;
+  private _collideHandler: (event: any) => void;
 
   private constructor(private _params: MeteorParams) {}
 
@@ -61,6 +62,22 @@ export class Meteor {
       Math.random() * 5 - 1,
       Math.random() * 5 - 1,
     );
+    
+    this._collideHandler = (event: any) => {
+      if (this._crash) return;
+      const { contact } = event;
+      this._crash = true;
+
+      if (contact.bj.mass === 0) { // planet is static
+        const pos = contact.rj.vadd(contact.bj.position);
+        this._params.showCoin(new THREE.Vector3(pos.x, pos.y, pos.z));
+      }
+
+      if (contact.bi.id === this._params.controller.body.id) {
+        this._params.controller.isHit = true;
+        this._params.onGameOver();
+      }
+    };
   }
 
   public show(): void {
@@ -80,27 +97,15 @@ export class Meteor {
     this._params.scene.add(this._mesh);
     this._params.world.addBody(this._body);
 
-    this._body.addEventListener('collide', (event: any) => {
-      if (this._crash) return;
-      const { contact } = event;
-      this._crash = true;
-
-      if (contact.bj.mass === 0) { // planet is static
-        const pos = contact.rj.vadd(contact.bj.position);
-        this._params.showCoin(new THREE.Vector3(pos.x, pos.y, pos.z));
-      }
-
-      if (contact.bi.id === this._params.controller.body.id) {
-        this._params.controller.isHit = true;
-        this._params.onGameOver();
-      }
-    });
+    this._body.addEventListener('collide', this._collideHandler);
   }
 
   public delete(): void {
     this._params.world.removeBody(this._body);
     this._params.scene.remove(this._mesh);
-    this._body.removeEventListener('collide', () => {});
+    if (this._collideHandler) {
+      this._body.removeEventListener('collide', this._collideHandler);
+    }
 
     this._params.activeMeteors.delete(this._params.key);
     this._params.reservedMeteors.set(this._params.key, this);
