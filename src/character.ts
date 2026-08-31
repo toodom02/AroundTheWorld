@@ -4,6 +4,7 @@ import * as CANNON from 'cannon-es';
 import { GAME_CONFIG } from './config';
 import { CharacterFSM } from './characterAnimations';
 import { CharacterControllerInput } from './characterInput';
+import { AudioManager } from './audio';
 
 type Animation = {
   readonly action: THREE.AnimationAction;
@@ -28,6 +29,7 @@ type CharacterControllerParams = {
   initPosition: THREE.Vector3;
   registerPhysicsBody?: (body: CANNON.Body) => void;
   onGameOver: () => void;
+  audio: AudioManager;
 };
 
 export class CharacterController {
@@ -62,6 +64,7 @@ export class CharacterController {
   private _jumpForceDuration = 0;
   private _jumpForceMaxDuration = GAME_CONFIG.CHARACTER.JUMP_DURATION;
   private _jumpForceStrength = GAME_CONFIG.CHARACTER.JUMP_FORCE;
+  private _footstepTimer = 0;
 
   isHit = false;
 
@@ -220,6 +223,8 @@ export class CharacterController {
     this._playerBody.force.set(0, 0, 0);
     this._target.rotation.set(0, 0, 0);
     this._stateMachine.SetState('idle');
+    this._canJump = true;
+    this._footstepTimer = 0;
     this.isHit = false;
   }
 
@@ -299,7 +304,17 @@ export class CharacterController {
     }
 
     const moveAmount = (forward - backward);
-    if (Math.abs(moveAmount) > 0.01) {
+    const isMoving = Math.abs(moveAmount) > 0.01;
+    if (isMoving && this._canJump) {
+      this._footstepTimer -= delta;
+      if (this._footstepTimer <= 0) {
+        this._params.audio.playFootstep(run > 0);
+        this._footstepTimer = run > 0 ? 0.35 : 0.55;
+      }
+    } else {
+      this._footstepTimer = 0;
+    }
+    if (isMoving) {
       this._inputVelocity.addScaledVector(
         this._localForward,
         moveAmount * acc * this._velocityFactor * delta * 100
