@@ -3,7 +3,7 @@ import * as CANNON from 'cannon-es';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { CharacterController } from '../character';
 
-interface MeteorParams {
+type MeteorParams = {
   key: string;
   scene: THREE.Scene;
   world: CANNON.World;
@@ -15,7 +15,9 @@ interface MeteorParams {
   reservedMeteors: Map<string, Meteor>;
   onGameOver: () => void;
   showCoin: (position: THREE.Vector3) => void;
-}
+  registerPhysicsBody?: (body: CANNON.Body) => void;
+  unregisterPhysicsBody?: (body: CANNON.Body) => void;
+};
 
 export class Meteor {
   private _mesh: THREE.Group;
@@ -96,12 +98,14 @@ export class Meteor {
 
     this._params.scene.add(this._mesh);
     this._params.world.addBody(this._body);
+    this._params.registerPhysicsBody?.(this._body);
 
     this._body.addEventListener('collide', this._collideHandler);
   }
 
   public delete(): void {
     this._params.world.removeBody(this._body);
+    this._params.unregisterPhysicsBody?.(this._body);
     this._params.scene.remove(this._mesh);
     if (this._collideHandler) {
       this._body.removeEventListener('collide', this._collideHandler);

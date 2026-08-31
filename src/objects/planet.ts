@@ -3,13 +3,13 @@ import * as CANNON from 'cannon-es';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { ShapeType, threeToCannon } from 'three-to-cannon';
 
-interface PlanetParams {
+type PlanetParams = {
   scene: THREE.Scene;
   world: CANNON.World;
   groundMaterial: CANNON.Material;
   planetRadius: number;
   atmosphereRadius: number;
-}
+};
 
 export class Planet {
   private _planet: THREE.Group;

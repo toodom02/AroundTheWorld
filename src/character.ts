@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import * as CANNON from 'cannon-es';
+import { GAME_CONFIG } from './config';
 import { CharacterFSM } from './characterAnimations';
 import { CharacterControllerInput } from './characterInput';
 
@@ -19,13 +20,15 @@ export class CharacterControllerProxy {
   }
 }
 
-interface CharacterControllerParams {
+type CharacterControllerParams = {
   camera: THREE.Camera;
   scene: THREE.Scene;
   world: CANNON.World;
   groundMaterial: CANNON.Material;
   initPosition: THREE.Vector3;
-}
+  registerPhysicsBody?: (body: CANNON.Body) => void;
+  onGameOver: () => void;
+};
 
 export class CharacterController {
   static async create(params: CharacterControllerParams): Promise<CharacterController> {
@@ -53,12 +56,12 @@ export class CharacterController {
   private _offset = new THREE.Vector3();
   private _playerPosition = new THREE.Vector3();
 
-  private _bodyRadius = 8;
-  private _velocityFactor = 1.5;
+  private _bodyRadius = GAME_CONFIG.CHARACTER.BODY_RADIUS;
+  private _velocityFactor = GAME_CONFIG.CHARACTER.VELOCITY_FACTOR;
   private _canJump = false;
   private _jumpForceDuration = 0;
-  private _jumpForceMaxDuration = 0.2;
-  private _jumpForceStrength = 5000000;
+  private _jumpForceMaxDuration = GAME_CONFIG.CHARACTER.JUMP_DURATION;
+  private _jumpForceStrength = GAME_CONFIG.CHARACTER.JUMP_FORCE;
 
   isHit = false;
 
@@ -82,9 +85,7 @@ export class CharacterController {
     const loader = new FBXLoader();
     loader.setPath('./resources/models/');
 
-    const fbx = await new Promise<THREE.Group>((resolve, reject) => {
-      loader.load('timmy.fbx', resolve, undefined, reject);
-    });
+    const fbx = await this._loadFBXWithTimeout<THREE.Group>(loader, 'timmy.fbx', 30000);
 
     fbx.scale.setScalar(0.1);
     fbx.traverse(child => (child.castShadow = true));
@@ -95,6 +96,29 @@ export class CharacterController {
 
     this._setupPlayerPhysics();
     await this._setupStateMachine();
+  }
+
+  private _loadFBXWithTimeout<T>(
+    loader: FBXLoader,
+    path: string,
+    timeout: number = 30000
+  ): Promise<T> {
+    return Promise.race([
+      new Promise<T>((resolve, reject) => {
+        loader.load(
+          path,
+          (model) => resolve(model as T),
+          undefined,
+          (error) => reject(new Error(`Failed to load ${path}: ${error}`))
+        );
+      }),
+      new Promise<T>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`Loading ${path} timed out after ${timeout}ms`)),
+          timeout
+        )
+      ),
+    ]);
   }
 
   private _setupPlayerPhysics() {
@@ -116,6 +140,10 @@ export class CharacterController {
     );
     this._params.world.addBody(this._playerBody);
     this._playerBody.updateMassProperties();
+
+    if (this._params.registerPhysicsBody) {
+      this._params.registerPhysicsBody(this._playerBody);
+    }
 
     const contactNormal = new CANNON.Vec3();
     const localUp = new CANNON.Vec3();
@@ -146,20 +174,22 @@ export class CharacterController {
     const animationNames = ['idle', 'walk', 'run', 'walkback', 'runback', 'dying'];
 
     const promises = animationNames.map((name: string) =>
-      new Promise<void>((resolve, reject) => {
-        loader.load(
-          `${name}.fbx`,
-          (anim: THREE.Group) => {
-            const clip = anim.animations[0];
-            this._animations[name] = {
-              clip,
-              action: this._mixer.clipAction(clip),
-            };
-            resolve();
-          },
-          undefined,
-          reject,
-        );
+      new Promise<void>(async (resolve, reject) => {
+        try {
+          const anim = await this._loadFBXWithTimeout<THREE.Group>(loader, `${name}.fbx`, 30000);
+          const clip = anim.animations[0];
+          if (!clip) {
+            reject(new Error(`No animation clip found in ${name}.fbx`));
+            return;
+          }
+          this._animations[name] = {
+            clip,
+            action: this._mixer.clipAction(clip),
+          };
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
       }),
     );
 
@@ -213,8 +243,9 @@ export class CharacterController {
     this._applyYaw(timeInSeconds);
     this._syncVisuals();
 
-    if (this._playerBody.position.length() > 250) {
-      this.ResetPlayer();
+    if (this._playerBody.position.length() > GAME_CONFIG.OUT_OF_BOUNDS_DISTANCE) {
+      this.isHit = true;
+      this._params.onGameOver();
     }
 
     this._mixer.update(timeInSeconds);
@@ -275,9 +306,9 @@ export class CharacterController {
       );
     }
 
-    this._playerBody.velocity.x *= 0.8;
-    this._playerBody.velocity.y *= 0.8;
-    this._playerBody.velocity.z *= 0.8;
+    this._playerBody.velocity.x *= GAME_CONFIG.PHYSICS.VELOCITY_DAMPING;
+    this._playerBody.velocity.y *= GAME_CONFIG.PHYSICS.VELOCITY_DAMPING;
+    this._playerBody.velocity.z *= GAME_CONFIG.PHYSICS.VELOCITY_DAMPING;
 
     this._playerBody.velocity.x += this._inputVelocity.x;
     this._playerBody.velocity.y += this._inputVelocity.y;
