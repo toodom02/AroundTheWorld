@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import * as CANNON from 'cannon-es';
 import { CharacterFSM } from './characterAnimations';
 import { CharacterControllerInput } from './characterInput';
@@ -145,11 +145,11 @@ export class CharacterController {
 
     const animationNames = ['idle', 'walk', 'run', 'walkback', 'runback', 'dying'];
 
-    const promises = animationNames.map(name =>
+    const promises = animationNames.map((name: string) =>
       new Promise<void>((resolve, reject) => {
         loader.load(
           `${name}.fbx`,
-          anim => {
+          (anim: THREE.Group) => {
             const clip = anim.animations[0];
             this._animations[name] = {
               clip,
