@@ -2,16 +2,31 @@ import * as THREE from 'three';
 import { CharacterControllerProxy } from './character';
 import { CharacterControllerInput } from './characterInput';
 
-class FiniteStateMachine {
-  _states: Record<string, typeof State>;
-  _currentState: State | null;
-  constructor() {
-    this._states = {};
+type StateConstructor = new (parent: CharacterFSM) => State;
+
+export class CharacterFSM {
+  private _states: Map<string, StateConstructor>;
+  private _currentState: State | null;
+  private _proxy: CharacterControllerProxy;
+  
+  constructor(proxy: CharacterControllerProxy) {
+    this._states = new Map();
     this._currentState = null;
+    this._proxy = proxy;
+    this._Init();
   }
 
-  _AddState(name: string, type: typeof State) {
-    this._states[name] = type;
+  private _AddState(name: string, type: StateConstructor) {
+    this._states.set(name, type);
+  }
+
+  private _Init() {
+    this._AddState('idle', IdleState);
+    this._AddState('walk', WalkState);
+    this._AddState('run', RunState);
+    this._AddState('walkback', WalkBackState);
+    this._AddState('runback', RunBackState);
+    this._AddState('dying', DyingState);
   }
 
   SetState(name: string) {
@@ -24,9 +39,13 @@ class FiniteStateMachine {
       prevState.Exit();
     }
 
-    // @ts-ignore
-    const state = new this._states[name](this);
+    const StateConstructor = this._states.get(name);
+    if (!StateConstructor) {
+      console.error(`State "${name}" not found in state machine`);
+      return;
+    }
 
+    const state = new StateConstructor(this);
     this._currentState = state;
     state.Enter(prevState);
   }
@@ -40,28 +59,15 @@ class FiniteStateMachine {
       this._currentState.Update(input);
     }
   }
-}
 
-export class CharacterFSM extends FiniteStateMachine {
-  _proxy: CharacterControllerProxy;
-  constructor(proxy: CharacterControllerProxy) {
-    super();
-    this._proxy = proxy;
-    this._Init();
-  }
-
-  _Init() {
-    this._AddState('idle', IdleState);
-    this._AddState('walk', WalkState);
-    this._AddState('run', RunState);
-    this._AddState('walkback', WalkBackState);
-    this._AddState('runback', RunBackState);
-    this._AddState('dying', DyingState);
+  get proxy(): CharacterControllerProxy {
+    return this._proxy;
   }
 }
 
 class State {
-  _parent: CharacterFSM;
+  protected _parent: CharacterFSM;
+  
   constructor(parent: CharacterFSM) {
     this._parent = parent;
   }
@@ -69,24 +75,21 @@ class State {
   get Name() {
     return '';
   }
+  
   Enter(prevState: State | null) {}
   Exit() {}
   Update(input: CharacterControllerInput) {}
 }
 
 class IdleState extends State {
-  constructor(parent: CharacterFSM) {
-    super(parent);
-  }
-
   get Name() {
     return 'idle';
   }
 
-  Enter(prevState: State) {
-    const curAction = this._parent._proxy.animations['idle'].action;
+  Enter(prevState: State | null) {
+    const curAction = this._parent.proxy.animations['idle'].action;
     if (prevState) {
-      const prevAction = this._parent._proxy.animations[prevState.Name].action;
+      const prevAction = this._parent.proxy.animations[prevState.Name].action;
       curAction.enabled = true;
       curAction.time = 0.0;
       curAction.setEffectiveTimeScale(1.0);
@@ -106,18 +109,14 @@ class IdleState extends State {
 }
 
 class WalkState extends State {
-  constructor(parent: CharacterFSM) {
-    super(parent);
-  }
-
   get Name() {
     return 'walk';
   }
 
-  Enter(prevState: State) {
-    const curAction = this._parent._proxy.animations['walk'].action;
+  Enter(prevState: State | null) {
+    const curAction = this._parent.proxy.animations['walk'].action;
     if (prevState) {
-      const prevAction = this._parent._proxy.animations[prevState.Name].action;
+      const prevAction = this._parent.proxy.animations[prevState.Name].action;
       curAction.enabled = true;
       if (prevState.Name === 'run') {
         // skip ahead in animation so legs are at same point
@@ -134,8 +133,6 @@ class WalkState extends State {
     curAction.play();
   }
 
-  Exit() {}
-
   Update(input: CharacterControllerInput) {
     if (input.move.forward) {
       if (input.move.run) {
@@ -147,19 +144,16 @@ class WalkState extends State {
     this._parent.SetState('idle');
   }
 }
-class WalkBackState extends State {
-  constructor(parent: CharacterFSM) {
-    super(parent);
-  }
 
+class WalkBackState extends State {
   get Name() {
     return 'walkback';
   }
 
-  Enter(prevState: State) {
-    const curAction = this._parent._proxy.animations['walkback'].action;
+  Enter(prevState: State | null) {
+    const curAction = this._parent.proxy.animations['walkback'].action;
     if (prevState) {
-      const prevAction = this._parent._proxy.animations[prevState.Name].action;
+      const prevAction = this._parent.proxy.animations[prevState.Name].action;
       curAction.enabled = true;
       if (prevState.Name === 'runback') {
         // skip ahead in animation so legs are at same point
@@ -189,18 +183,14 @@ class WalkBackState extends State {
 }
 
 class RunState extends State {
-  constructor(parent: CharacterFSM) {
-    super(parent);
-  }
-
   get Name() {
     return 'run';
   }
 
-  Enter(prevState: State) {
-    const curAction = this._parent._proxy.animations['run'].action;
+  Enter(prevState: State | null) {
+    const curAction = this._parent.proxy.animations['run'].action;
     if (prevState) {
-      const prevAction = this._parent._proxy.animations[prevState.Name].action;
+      const prevAction = this._parent.proxy.animations[prevState.Name].action;
       curAction.enabled = true;
       if (prevState.Name === 'walk') {
         // skip ahead in animation so legs are at same point
@@ -228,19 +218,16 @@ class RunState extends State {
     this._parent.SetState('idle');
   }
 }
-class RunBackState extends State {
-  constructor(parent: CharacterFSM) {
-    super(parent);
-  }
 
+class RunBackState extends State {
   get Name() {
     return 'runback';
   }
 
-  Enter(prevState: State) {
-    const curAction = this._parent._proxy.animations['runback'].action;
+  Enter(prevState: State | null) {
+    const curAction = this._parent.proxy.animations['runback'].action;
     if (prevState) {
-      const prevAction = this._parent._proxy.animations[prevState.Name].action;
+      const prevAction = this._parent.proxy.animations[prevState.Name].action;
       curAction.enabled = true;
       if (prevState.Name === 'walkback') {
         // skip ahead in animation so legs are at same point
@@ -270,20 +257,16 @@ class RunBackState extends State {
 }
 
 class DyingState extends State {
-  constructor(parent: CharacterFSM) {
-    super(parent);
-  }
-
   get Name() {
     return 'dying';
   }
 
-  Enter(prevState: State) {
-    const curAction = this._parent._proxy.animations['dying'].action;
+  Enter(prevState: State | null) {
+    const curAction = this._parent.proxy.animations['dying'].action;
     curAction.reset();
     curAction.stop();
     if (prevState) {
-      const prevAction = this._parent._proxy.animations[prevState.Name].action;
+      const prevAction = this._parent.proxy.animations[prevState.Name].action;
       curAction.enabled = true;
       curAction.time = 0.0;
       curAction.setEffectiveTimeScale(1.0);
@@ -293,7 +276,7 @@ class DyingState extends State {
     curAction.loop = THREE.LoopOnce;
     curAction.clampWhenFinished = true;
     curAction.play();
-}
+  }
 
   Update(input: CharacterControllerInput) {
   }

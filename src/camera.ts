@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-import {CharacterController} from './character';
+import { GAME_CONFIG } from './config';
+import { CharacterController } from './character';
 
-interface ThirdPersonCameraParams {
+type ThirdPersonCameraParams = {
   camera: THREE.PerspectiveCamera;
   target: CharacterController;
-}
+};
 
 export class ThirdPersonCamera {
   private _camera: THREE.PerspectiveCamera;
@@ -13,9 +14,10 @@ export class ThirdPersonCamera {
   private _currentLookat: THREE.Vector3;
   private _idealLookat: THREE.Vector3;
   private _idealOffset: THREE.Vector3;
+  private _cameraUp: THREE.Vector3;
 
   private _transitionTime = 0;
-  private _transitionDuration = 4;
+  private _transitionDuration = GAME_CONFIG.CAMERA.TRANSITION_DURATION;
   private _transitioning = false;
 
   constructor(params: ThirdPersonCameraParams) {
@@ -26,6 +28,7 @@ export class ThirdPersonCamera {
     this._currentLookat = new THREE.Vector3(0, 0, 0);
     this._idealLookat = new THREE.Vector3();
     this._idealOffset = new THREE.Vector3();
+    this._cameraUp = new THREE.Vector3();
   }
 
   public startTransition(): void {
@@ -34,14 +37,16 @@ export class ThirdPersonCamera {
   }
 
   private _CalculateIdealOffset(): THREE.Vector3 {
-    this._idealOffset.set(-15, 28, -30);
+    const { x, y, z } = GAME_CONFIG.CAMERA.OFFSET;
+    this._idealOffset.set(x, y, z);
     this._idealOffset.applyQuaternion(this._target.Rotation);
     this._idealOffset.add(this._target.Position);
     return this._idealOffset;
   }
 
   private _CalculateIdealLookat(): THREE.Vector3 {
-    this._idealLookat.set(0, 18, 50);
+    const { x, y, z } = GAME_CONFIG.CAMERA.LOOKAT_OFFSET;
+    this._idealLookat.set(x, y, z);
     this._idealLookat.applyQuaternion(this._target.Rotation);
     this._idealLookat.add(this._target.Position);
     return this._idealLookat;
@@ -66,8 +71,8 @@ export class ThirdPersonCamera {
     this._currentPosition.lerp(idealOffset, t);
     this._currentLookat.lerp(idealLookat, t);
 
-    this._camera.up.copy(this._target.Position)
-      .normalize();
+    this._cameraUp.copy(this._target.Position).normalize();
+    this._camera.up.copy(this._cameraUp);
 
     this._camera.position.copy(this._currentPosition);
     this._camera.lookAt(this._currentLookat);

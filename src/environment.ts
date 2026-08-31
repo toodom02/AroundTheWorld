@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import {Ball, Stars, Moon, Planet, Meteor, Coin} from './objects';
+import { GAME_CONFIG } from './config';
+import { Ball, Stars, Moon, Planet, Meteor, Coin } from './objects';
 import { CharacterController } from './character';
 
-interface EnvironmentParams {
+type EnvironmentParams = {
   scene: THREE.Scene;
   world: CANNON.World;
   groundMaterial: CANNON.Material;
@@ -11,24 +12,26 @@ interface EnvironmentParams {
   controller: CharacterController;
   onGameOver: () => void;
   onUpdateScore: (score: number) => void;
-}
+  registerPhysicsBody?: (body: CANNON.Body) => void;
+  unregisterPhysicsBody?: (body: CANNON.Body) => void;
+};
 
 export class Environment {
-  _atmosphereRadius: number;
-  _ball: Ball;
-  _stars: Stars;
-  _moon: Moon;
-  _planet: Planet;
-  _activeCoins: Map<string, Coin>;
-  _maxCoins = 20;
-  _reservedCoins: Map<string, Coin>;
-  _maxMeteors: number;
-  _activeMeteors: Map<string, Meteor>;
-  _reservedMeteors: Map<string, Meteor>;
-  _meteorIncreaseInterval = 7500;
-  _meteorIncreaseTimer: number | null = null;
-  _maxMeteorsLimit = 25;
-  _initialMeteors = 5;
+  private _atmosphereRadius: number;
+  private _ball: Ball;
+  private _stars: Stars;
+  private _moon: Moon;
+  private _planet: Planet;
+  private _activeCoins: Map<string, Coin>;
+  private _maxCoins = GAME_CONFIG.COINS.MAX_COINS;
+  private _reservedCoins: Map<string, Coin>;
+  private _maxMeteors: number;
+  private _activeMeteors: Map<string, Meteor>;
+  private _reservedMeteors: Map<string, Meteor>;
+  private _meteorIncreaseInterval = GAME_CONFIG.METEORS.INCREASE_INTERVAL;
+  private _meteorIncreaseTimer: number | null = null;
+  private _maxMeteorsLimit = GAME_CONFIG.METEORS.MAX_COUNT;
+  private _initialMeteors = GAME_CONFIG.METEORS.INITIAL_COUNT;
 
   private constructor(private _params: EnvironmentParams) {}
 
@@ -39,7 +42,7 @@ export class Environment {
   }
 
   private async _init() {
-    this._atmosphereRadius = 100;
+    this._atmosphereRadius = GAME_CONFIG.PHYSICS.ATMOSPHERE_RADIUS;
     this._maxMeteors = this._initialMeteors;
     this._activeMeteors = new Map<string, Meteor>();
     this._reservedMeteors = new Map<string, Meteor>();
@@ -78,6 +81,7 @@ export class Environment {
       world: this._params.world,
       groundMaterial: this._params.groundMaterial,
       initPosition: new THREE.Vector3(5, this._params.planetRadius + 1, 15),
+      registerPhysicsBody: this._params.registerPhysicsBody,
     });
   }
 
@@ -125,6 +129,8 @@ export class Environment {
           activeMeteors: this._activeMeteors,
           reservedMeteors: this._reservedMeteors,
           showCoin: this._showCoin.bind(this),
+          registerPhysicsBody: this._params.registerPhysicsBody,
+          unregisterPhysicsBody: this._params.unregisterPhysicsBody,
         });
         this._reservedMeteors.set(key, meteor);
       });

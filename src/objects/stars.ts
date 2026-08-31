@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 
-interface StarsParams {
+type StarsParams = {
   scene: THREE.Scene;
   atmosphereRadius: number;
   planetRadius: number;
-}
+};
 
 export class Stars {
   private _particlesMesh: THREE.Points;

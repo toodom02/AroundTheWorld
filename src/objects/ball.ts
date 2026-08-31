@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import { GAME_CONFIG } from '../config';
 
-interface BallParams {
+type BallParams = {
   scene: THREE.Scene;
   world: CANNON.World;
   groundMaterial: CANNON.Material;
   initPosition: THREE.Vector3;
-}
+  registerPhysicsBody?: (body: CANNON.Body) => void;
+};
 
 export class Ball {
   private _ball: THREE.Mesh;
@@ -49,6 +51,10 @@ export class Ball {
       this._ball.position.z,
     );
     this._params.world.addBody(this._ballBody);
+    
+    if (this._params.registerPhysicsBody) {
+      this._params.registerPhysicsBody(this._ballBody);
+    }
   }
 
   public updatePosition(): void {

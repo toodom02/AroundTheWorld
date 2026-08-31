@@ -1,28 +1,28 @@
-export class Menu {
-  _params: {
-    onStart: () => void;
-    onRestart: () => void;
-  };
-  _scoreContainer: HTMLElement;
-  _scoreElement: HTMLElement;
-  _menuElement: HTMLElement;
-  _gameOverElement: HTMLElement;
-  _gameOverScore: HTMLElement;
-  _musicElement: HTMLAudioElement;
-  _musicControl: HTMLElement;
-  _startButton: HTMLElement;
-  _restartButton: HTMLElement;
-  _overlay: HTMLElement;
+type MenuParams = {
+  onStart: () => void;
+  onRestart: () => void;
+};
 
-  constructor(params: {
-    onStart: () => void;
-    onRestart: () => void;
-  }) {
+export class Menu {
+  private _params: MenuParams;
+  private _scoreContainer: HTMLElement;
+  private _scoreElement: HTMLElement;
+  private _menuElement: HTMLElement;
+  private _gameOverElement: HTMLElement;
+  private _gameOverScore: HTMLElement;
+  private _musicElement: HTMLAudioElement;
+  private _musicControl: HTMLElement;
+  private _startButton: HTMLElement;
+  private _restartButton: HTMLElement;
+  private _overlay: HTMLElement;
+
+
+  constructor(params: MenuParams) {
     this._params = params;
     this._Init();
   }
 
-  _Init() {
+  private _Init() {
     this._scoreContainer = document.getElementById('scorediv')!;
     this._scoreElement = document.getElementById('score')!;
     this._menuElement = document.getElementById('menu')!;
@@ -69,7 +69,7 @@ export class Menu {
     }
   }
 
-  _PlayMusic() {
+  private _PlayMusic() {
     void this._musicElement.play();
     this._musicElement.volume = 0.2;
   }

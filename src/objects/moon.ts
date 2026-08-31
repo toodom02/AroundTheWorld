@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 
-interface MoonParams {
+type MoonParams = {
   scene: THREE.Scene;
-}
+};
 
 export class Moon {
   private _moon: THREE.Mesh;

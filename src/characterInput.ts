@@ -3,8 +3,15 @@ import * as nipplejs from 'nipplejs';
 export class CharacterControllerInput {
   private _move = { forward: 0, backward: 0, left: 0, right: 0, run: 0, jump: false };
   private _joystick: nipplejs.JoystickManager | null = null;
+  private _onKeyDown: (e: KeyboardEvent) => void;
+  private _onKeyUp: (e: KeyboardEvent) => void;
 
   isHit = false;
+
+  constructor() {
+    this._onKeyDown = this._handleKeyDown.bind(this);
+    this._onKeyUp = this._handleKeyUp.bind(this);
+  }
 
   private _showJoystick() {
     if (this._joystick) return;
@@ -34,19 +41,19 @@ export class CharacterControllerInput {
   }
 
   public Enable() {
-    document.addEventListener('keydown', this._onKeyDown, false);
-    document.addEventListener('keyup', this._onKeyUp, false);
+    document.addEventListener('keydown', this._onKeyDown);
+    document.addEventListener('keyup', this._onKeyUp);
     this._showJoystick();
   }
 
   public Disable() {
     this._hideJoystick();
-    document.removeEventListener('keydown', this._onKeyDown, false);
-    document.removeEventListener('keyup', this._onKeyUp, false);
+    document.removeEventListener('keydown', this._onKeyDown);
+    document.removeEventListener('keyup', this._onKeyUp);
     this._move = { forward: 0, backward: 0, left: 0, right: 0, run: 0, jump: false };
   }
 
-  private _onKeyDown = (e: KeyboardEvent) => {
+  private _handleKeyDown(e: KeyboardEvent) {
     switch (e.code) {
       case 'KeyW': this._move.forward = 1; break;
       case 'KeyA': this._move.left = 1; break;
@@ -56,9 +63,9 @@ export class CharacterControllerInput {
       case 'ShiftLeft':
       case 'ShiftRight': this._move.run = 1; break;
     }
-  };
+  }
 
-  private _onKeyUp = (e: KeyboardEvent) => {
+  private _handleKeyUp(e: KeyboardEvent) {
     switch (e.code) {
       case 'KeyW': this._move.forward = 0; break;
       case 'KeyA': this._move.left = 0; break;
@@ -68,7 +75,7 @@ export class CharacterControllerInput {
       case 'ShiftLeft':
       case 'ShiftRight': this._move.run = 0; break;
     }
-  };
+  }
 
   get move() {
     return this._move;

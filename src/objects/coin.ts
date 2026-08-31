@@ -2,14 +2,14 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { CharacterController } from '../character';
 
-interface CoinParams {
+type CoinParams = {
   key: string;
   scene: THREE.Scene;
   controller: CharacterController;
   activeCoins: Map<string, Coin>;
   reservedCoins: Map<string, Coin>;
   addScore: (points: number) => void;
-}
+};
 
 export class Coin {
   private _mesh: THREE.Group;

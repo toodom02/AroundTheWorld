@@ -2,14 +2,24 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import CannonDebugger from 'cannon-es-debugger';
 
+import { GAME_CONFIG } from './config';
 import { CharacterController } from './character';
 import { ThirdPersonCamera } from './camera';
 import { Environment } from './environment';
 import { Menu } from './menu';
 
+enum WorldState {
+  INITIALIZING,
+  IDLE,
+  PLAYING,
+  GAME_OVER,
+}
+
 export class World {
   private _menu: Menu;
   private _started = false;
+
+  private _state = WorldState.INITIALIZING;
   private _threejs: THREE.WebGLRenderer;
   private _camera: THREE.PerspectiveCamera;
   private _scene: THREE.Scene;
@@ -19,10 +29,11 @@ export class World {
   private _environ: Environment;
   private _cannonDebugRenderer?: ReturnType<typeof CannonDebugger>;
   private _groundMaterial: CANNON.Material;
-  private _planetRadius = 100;
+  private _planetRadius = GAME_CONFIG.PHYSICS.PLANET_RADIUS;
   private _previousRAF = 0;
   private _debug = false;
   private _fireTexture: THREE.Texture;
+  private _dynamicBodies: CANNON.Body[] = [];
 
   static async create(): Promise<World> {
     const world = new World();
@@ -47,6 +58,7 @@ export class World {
     });
 
     this._initMenu();
+    this._state = WorldState.IDLE;
     this._animateMenu();
   }
 
@@ -58,8 +70,10 @@ export class World {
   private _initRenderer(): void {
     this._threejs = new THREE.WebGLRenderer({ antialias: true });
     this._threejs.shadowMap.enabled = true;
-    this._threejs.shadowMap.type = THREE.PCFSoftShadowMap;
-    this._threejs.setPixelRatio(window.devicePixelRatio);
+    
+    const isMobile = /Android|webOS|iPhone|iPad/i.test(navigator.userAgent);
+    this._threejs.shadowMap.type = isMobile ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+    this._threejs.setPixelRatio(Math.min(window.devicePixelRatio, GAME_CONFIG.RENDERING.DEFAULT_PIXEL_RATIO_CAP));
     this._threejs.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(this._threejs.domElement);
   }
@@ -86,7 +100,8 @@ export class World {
     dirLight.position.set(100, 100, 100);
     dirLight.castShadow = true;
     dirLight.shadow.bias = -0.001;
-    dirLight.shadow.mapSize.set(1024, 1024);
+    const shadowSize = GAME_CONFIG.RENDERING.SHADOW_MAP_SIZE;
+    dirLight.shadow.mapSize.set(shadowSize, shadowSize);
     dirLight.shadow.camera.near = 0.5;
     dirLight.shadow.camera.far = 500;
     dirLight.shadow.camera.left = 100;
@@ -113,16 +128,38 @@ export class World {
     this._world.addContactMaterial(contactMaterial);
 
     this._world.addEventListener('postStep', () => {
-      for (const body of this._world.bodies) {
-        if (body.mass === 0) continue;
-        const gravityForce = body.position.clone().negate().unit().scale(300 * body.mass);
-        body.applyForce(gravityForce, body.position);
-        body.force.y += body.mass; // negate world gravity
-      }
+      this._applyCustomGravity();
     });
 
     if (this._debug) {
       this._cannonDebugRenderer = CannonDebugger(this._scene, this._world);
+    }
+  }
+
+  private _applyCustomGravity(): void {
+    for (const body of this._dynamicBodies) {
+      const pos = body.position;
+      const length = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
+      if (length > 0) {
+        // Apply radial gravity toward planet center
+        const scale = (GAME_CONFIG.PHYSICS.GRAVITY_FORCE_SCALE * body.mass) / length;
+        body.force.x -= pos.x * scale;
+        body.force.y -= pos.y * scale;
+        body.force.z -= pos.z * scale;
+      }
+    }
+  }
+
+  private _registerDynamicBody(body: CANNON.Body): void {
+    if (!this._dynamicBodies.includes(body)) {
+      this._dynamicBodies.push(body);
+    }
+  }
+
+  private _unregisterDynamicBody(body: CANNON.Body): void {
+    const index = this._dynamicBodies.indexOf(body);
+    if (index >= 0) {
+      this._dynamicBodies.splice(index, 1);
     }
   }
 
@@ -133,6 +170,8 @@ export class World {
       world: this._world,
       groundMaterial: this._groundMaterial,
       initPosition: new THREE.Vector3(0, this._planetRadius, 0),
+      registerPhysicsBody: (body: CANNON.Body) => this._registerDynamicBody(body),
+      onGameOver: this._onGameOver.bind(this),
     });
   }
 
@@ -143,8 +182,10 @@ export class World {
       groundMaterial: this._groundMaterial,
       planetRadius: this._planetRadius,
       controller: this._controls,
-      onGameOver: this._GameOver(),
+      onGameOver: this._onGameOver.bind(this),
       onUpdateScore: (score: number) => this._menu.UpdateScore(score),
+      registerPhysicsBody: (body: CANNON.Body) => this._registerDynamicBody(body),
+      unregisterPhysicsBody: (body: CANNON.Body) => this._unregisterDynamicBody(body),
     });
   }
 
@@ -153,11 +194,13 @@ export class World {
       onStart: () => {
         this._Start();
         this._started = true;
+        this._state = WorldState.PLAYING;
         this._animate();
       },
       onRestart: () => {
         this._Start();
         this._started = true;
+        this._state = WorldState.PLAYING;
       },
     });
 
@@ -172,12 +215,15 @@ export class World {
     this._environ.resetCoins();
   }
 
-  private _GameOver(): () => void {
-    return () => {
-      this._controls.Disable();
-      this._menu.ShowGameOver(this._environ.score);
-      this._environ.stopMeteors();
-    }
+
+
+  private _onGameOver(): void {
+    if (this._state === WorldState.GAME_OVER) return;
+    
+    this._state = WorldState.GAME_OVER;
+    this._controls.Disable();
+    this._menu.ShowGameOver(this._environ.score);
+    this._environ.stopMeteors();
   }
 
   private _onWindowResize(): void {
