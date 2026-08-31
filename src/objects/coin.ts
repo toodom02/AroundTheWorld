@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { CharacterController } from '../character';
+import { AudioManager } from '../audio';
 
 type CoinParams = {
   key: string;
@@ -9,13 +10,13 @@ type CoinParams = {
   activeCoins: Map<string, Coin>;
   reservedCoins: Map<string, Coin>;
   addScore: (points: number) => void;
+  audio: AudioManager;
 };
 
 export class Coin {
   private _mesh: THREE.Group;
   private _spinAxis = new THREE.Vector3(1, 0, 0);
   private _spinAngle = Math.PI / 180;
-  private _audio: HTMLAudioElement;
 
   private constructor(private _params: CoinParams) {}
 
@@ -26,8 +27,6 @@ export class Coin {
   }
 
   private async _init(): Promise<void> {
-    this._audio = new Audio('./resources/coin.mp3');
-    this._audio.volume = 0.1;
     const loader = new FBXLoader();
     loader.setPath('./resources/models/');
 
@@ -86,8 +85,7 @@ export class Coin {
     const distSq = dx * dx + dy * dy + dz * dz;
     const threshold = 8 * 8;
     if (distSq < threshold) {
-      this._audio.currentTime = 0;
-      this._audio.play();
+      this._params.audio.play('coin', 0.5);
       this.hideCoin();
       this._params.addScore(1);
     }

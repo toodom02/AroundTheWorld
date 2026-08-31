@@ -3,6 +3,7 @@ import * as CANNON from 'cannon-es';
 import { GAME_CONFIG } from './config';
 import { Ball, Stars, Moon, Planet, Meteor, Coin } from './objects';
 import { CharacterController } from './character';
+import { AudioManager } from './audio';
 
 type EnvironmentParams = {
   scene: THREE.Scene;
@@ -14,6 +15,7 @@ type EnvironmentParams = {
   onUpdateScore: (score: number) => void;
   registerPhysicsBody?: (body: CANNON.Body) => void;
   unregisterPhysicsBody?: (body: CANNON.Body) => void;
+  audio: AudioManager;
 };
 
 export class Environment {
@@ -160,6 +162,7 @@ export class Environment {
           activeCoins: this._activeCoins,
           reservedCoins: this._reservedCoins,
           addScore: this.addScore.bind(this),
+          audio: this._params.audio,
         });
         this._reservedCoins.set(key, coin);
       });

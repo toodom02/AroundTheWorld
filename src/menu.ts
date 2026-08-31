@@ -1,6 +1,9 @@
+import { AudioManager } from './audio';
+
 type MenuParams = {
   onStart: () => void;
   onRestart: () => void;
+  audio: AudioManager;
 };
 
 export class Menu {
@@ -10,7 +13,6 @@ export class Menu {
   private _menuElement: HTMLElement;
   private _gameOverElement: HTMLElement;
   private _gameOverScore: HTMLElement;
-  private _musicElement: HTMLAudioElement;
   private _musicControl: HTMLElement;
   private _startButton: HTMLElement;
   private _restartButton: HTMLElement;
@@ -28,15 +30,19 @@ export class Menu {
     this._menuElement = document.getElementById('menu')!;
     this._gameOverElement = document.getElementById('gameover')!;
     this._gameOverScore = document.getElementById('gameover-score')!;
-    this._musicElement = document.getElementById('music') as HTMLAudioElement;
     this._musicControl = document.getElementById('music-control')!;
+    this._params.audio.preloadSound('music', './resources/background.mp3', true);
+    this._params.audio.preloadSound('coin', './resources/coin.mp3');
+    this._musicControl.classList.toggle('mute', this._params.audio.muted);
     this._startButton = document.getElementById('start-button')!;
     this._restartButton = document.getElementById('restart-button')!;
     this._overlay = document.getElementById('loading-overlay')!;
 
     this._musicControl.onclick = () => {
-      this._musicElement.muted = !this._musicElement.muted;
-      this._musicControl.classList.toggle('mute');
+      const muted = this._params.audio.toggleMute();
+      this._musicControl.classList.toggle('mute', muted);
+      this._musicControl.setAttribute('aria-label', muted ? 'Unmute music' : 'Mute music');
+      this._musicControl.setAttribute('title', muted ? 'Unmute music' : 'Mute music');
     }
   }
 
@@ -45,18 +51,22 @@ export class Menu {
     this._startButton.innerHTML = 'Start';
     this._startButton.classList.add('loaded');
     this._startButton.onclick = () => {
+      this._params.audio.unlock();
+      this._params.audio.playMusic('music');
       this._params.onStart();
-      this._PlayMusic();
       this._menuElement.style.display = 'none';
       this._scoreContainer.style.display = 'flex';
     }
   }
 
   ShowGameOver(score: number) {
+    this._params.audio.fadeOut('music', 500);
     this._scoreContainer.style.display = 'none';
     this._gameOverElement.style.display = 'flex';
     this._gameOverScore.innerText = score.toString();
     this._restartButton.onclick = () => {
+      this._params.audio.unlock();
+      this._params.audio.playMusic('music');
       this._params.onRestart();
       this._gameOverElement.style.display = 'none';
       this._scoreContainer.style.display = 'flex';
@@ -69,8 +79,4 @@ export class Menu {
     }
   }
 
-  private _PlayMusic() {
-    void this._musicElement.play();
-    this._musicElement.volume = 0.2;
-  }
 }

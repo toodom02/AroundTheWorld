@@ -7,6 +7,7 @@ import { CharacterController } from './character';
 import { ThirdPersonCamera } from './camera';
 import { Environment } from './environment';
 import { Menu } from './menu';
+import { AudioManager } from './audio';
 
 enum WorldState {
   INITIALIZING,
@@ -34,6 +35,7 @@ export class World {
   private _debug = false;
   private _fireTexture: THREE.Texture;
   private _dynamicBodies: CANNON.Body[] = [];
+  private _audio = new AudioManager();
 
   static async create(): Promise<World> {
     const world = new World();
@@ -172,6 +174,7 @@ export class World {
       initPosition: new THREE.Vector3(0, this._planetRadius, 0),
       registerPhysicsBody: (body: CANNON.Body) => this._registerDynamicBody(body),
       onGameOver: this._onGameOver.bind(this),
+      audio: this._audio,
     });
   }
 
@@ -186,6 +189,7 @@ export class World {
       onUpdateScore: (score: number) => this._menu.UpdateScore(score),
       registerPhysicsBody: (body: CANNON.Body) => this._registerDynamicBody(body),
       unregisterPhysicsBody: (body: CANNON.Body) => this._unregisterDynamicBody(body),
+      audio: this._audio,
     });
   }
 
@@ -202,6 +206,7 @@ export class World {
         this._started = true;
         this._state = WorldState.PLAYING;
       },
+      audio: this._audio,
     });
 
     this._menu.EnableStartMenu();
