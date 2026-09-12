@@ -56,6 +56,24 @@ export const GAME_CONFIG = {
     ELITE_RADIUS_SCALE: 1.6,
     ELITE_SPEED_SCALE: 1.3,
   },
+  EFFECTS: {
+    // Floating score popups (pooled DOM nodes projected from world space).
+    POPUP_POOL_SIZE: 16,
+    POPUP_LIFETIME: 0.95,
+    POPUP_RISE_PX: 64,
+    // Impact particles: one pooled GPU point cloud + a few shockwave rings.
+    PARTICLE_BUDGET: 512,
+    PARTICLE_DRAG: 2.4,
+    PARTICLE_GRAVITY: 34, // radial acceleration toward the planet center (u/s^2)
+    SHOCKWAVE_COUNT: 6,
+    SHOCKWAVE_LIFETIME: 0.5,
+    // Trauma-based screen shake on the third-person camera.
+    SHAKE_DECAY_PER_SEC: 2.6,
+    SHAKE_MAX_OFFSET: 1.6, // world units of camera offset at full trauma
+    // Additive glow streak trailing each active meteor.
+    TRAIL_MAX_LENGTH: 30,
+    TRAIL_MAX_OPACITY: 0.5,
+  },
   HEARTS: {
     MAX_HEARTS: 8,
     COLLECTION_DISTANCE_SQUARED: 64, // 8 * 8

@@ -20,6 +20,9 @@ export class ThirdPersonCamera {
   private _transitionDuration = GAME_CONFIG.CAMERA.TRANSITION_DURATION;
   private _transitioning = false;
 
+  private _shakeTrauma = 0;
+  private _shakeTime = 0;
+
   constructor(params: ThirdPersonCameraParams) {
     this._camera = params.camera;
     this._target = params.target;
@@ -34,6 +37,10 @@ export class ThirdPersonCamera {
   public startTransition(): void {
     this._transitionTime = 0;
     this._transitioning = true;
+  }
+
+  public shake(strength: number): void {
+    this._shakeTrauma = Math.min(1, this._shakeTrauma + strength);
   }
 
   private _CalculateIdealOffset(): THREE.Vector3 {
@@ -79,5 +86,19 @@ export class ThirdPersonCamera {
 
     this._camera.position.copy(this._currentPosition);
     this._camera.lookAt(this._currentLookat);
+
+    this._shakeTrauma = Math.max(
+      0,
+      this._shakeTrauma - GAME_CONFIG.EFFECTS.SHAKE_DECAY_PER_SEC * timeElapsed,
+    );
+    this._shakeTime += timeElapsed;
+    const shaking = this._shakeTrauma * this._shakeTrauma;
+    if (shaking > 1e-4) {
+      const amp = GAME_CONFIG.EFFECTS.SHAKE_MAX_OFFSET * shaking;
+      const t = this._shakeTime;
+      this._camera.position.x += amp * Math.sin(t * 83.1 + 12.7);
+      this._camera.position.y += amp * Math.sin(t * 61.7 + 40.2);
+      this._camera.position.z += amp * Math.sin(t * 97.3 + 62.9);
+    }
   }
 }

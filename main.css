@@ -76,6 +76,24 @@ h1 {
   transition: opacity 0.4s ease-out;
 }
 
+#score-popups {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+
+.score-popup {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  will-change: opacity, transform;
+  user-select: none;
+}
+
 .footer {
   z-index: 2;
   position: absolute;
