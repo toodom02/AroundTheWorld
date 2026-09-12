@@ -9,7 +9,7 @@ type HeartParams = {
   controller: CharacterController;
   activeHearts: Map<string, Heart>;
   reservedHearts: Map<string, Heart>;
-  onCollect: () => void;
+  onCollect: (position: THREE.Vector3) => void;
   audio: AudioManager;
 };
 
@@ -129,7 +129,7 @@ export class Heart {
     if (distSq < threshold) {
       this._params.audio.play('heart', 0.8);
       this.hide();
-      this._params.onCollect();
+      this._params.onCollect(this._mesh.position);
       return;
     }
 

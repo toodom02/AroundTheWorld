@@ -4,6 +4,35 @@ import {GAME_CONFIG} from '../config';
 import {CollideEvent} from '../collide';
 import {CharacterController} from '../character';
 import {TargetRing} from '../effects/targetRing';
+import {ParticleEffects} from '../effects/particles';
+
+let trailTexture: THREE.Texture | null = null;
+
+function getTrailTexture(): THREE.Texture {
+  if (trailTexture) return trailTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const drop = ctx.createLinearGradient(0, 0, 0, 128);
+    drop.addColorStop(0, 'rgba(255,255,255,0)');
+    drop.addColorStop(0.35, 'rgba(255,255,255,0.95)');
+    drop.addColorStop(1, 'rgba(255,255,255,0.1)');
+    ctx.fillStyle = drop;
+    ctx.fillRect(0, 0, 64, 128);
+    ctx.globalCompositeOperation = 'destination-in';
+    const soft = ctx.createRadialGradient(32, 60, 10, 32, 60, 62);
+    soft.addColorStop(0, 'rgba(255,255,255,1)');
+    soft.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = soft;
+    ctx.fillRect(0, 0, 64, 128);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  trailTexture = texture;
+  return texture;
+}
 
 type MeteorParams = {
   key: string;
@@ -18,6 +47,8 @@ type MeteorParams = {
   showCoin: (position: THREE.Vector3) => void;
   showHeart: (position: THREE.Vector3) => void;
   ring: TargetRing; // pooled; hidden while reserved, shown while active
+  effects: ParticleEffects; // shared; fired on ground impact
+  onImpact?: (strength: number) => void;
   model: THREE.Group; // shared, preloaded template; cloned per instance
   registerPhysicsBody?: (body: CANNON.Body) => void;
   unregisterPhysicsBody?: (body: CANNON.Body) => void;
@@ -59,6 +90,11 @@ export class Meteor {
   private _steerToPlayer = new THREE.Vector3();
   private _ringImpact = new THREE.Vector3();
   private _player = new THREE.Vector3();
+  private _burstNormal = new THREE.Vector3();
+  private _trailDir = new THREE.Vector3();
+
+  private _trail: THREE.Sprite;
+  private _trailMaterial: THREE.SpriteMaterial;
 
   private constructor(private _params: MeteorParams) {}
 
@@ -114,6 +150,18 @@ export class Meteor {
     fbx.updateMatrixWorld(true);
 
     this._mesh = fbx;
+
+    this._trailMaterial = new THREE.SpriteMaterial({
+      map: getTrailTexture(),
+      color: this._elite ? 0xff5020 : 0xffa030,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    this._trail = new THREE.Sprite(this._trailMaterial);
+    this._trail.visible = false;
+    this._trail.renderOrder = 5;
 
     const sphereShape = new CANNON.Sphere(radius);
     this._body = new CANNON.Body({
@@ -172,6 +220,22 @@ export class Meteor {
         } else {
           this._params.showCoin(this._showPos);
         }
+
+        // burst normal comes from the terrain raycast when available, otherwise
+        // the radial 'up' (perfect-sphere) direction.
+        this._burstNormal
+          .copy(this._hasSurface ? this._surfaceNormal : this._showPos)
+          .normalize();
+        if (this._burstNormal.lengthSq() < 1e-6) {
+          this._burstNormal.set(0, 1, 0);
+        }
+        this._params.effects.burst(
+          this._showPos,
+          this._burstNormal,
+          this._radius,
+          this._elite,
+        );
+        this._params.onImpact?.(this._elite ? 0.55 : 0.35);
       }
     };
   }
@@ -256,6 +320,11 @@ export class Meteor {
     this._params.world.addBody(this._body);
     this._params.registerPhysicsBody?.(this._body);
 
+    this._trailMaterial.opacity = 0;
+    this._trail.visible = true;
+    this._trail.position.copy(this._mesh.position);
+    this._params.scene.add(this._trail);
+
     this._body.addEventListener('collide', this._collideHandler);
   }
 
@@ -277,6 +346,11 @@ export class Meteor {
     this._params.world.removeBody(this._body);
     this._params.unregisterPhysicsBody?.(this._body);
     this._params.scene.remove(this._mesh);
+    if (this._trail) {
+      this._trailMaterial.opacity = 0;
+      this._trail.visible = false;
+      this._params.scene.remove(this._trail);
+    }
     if (this._collideHandler) {
       this._body.removeEventListener('collide', this._collideHandler);
     }
@@ -313,10 +387,47 @@ export class Meteor {
     } else {
       this._params.ring.hide();
     }
+    this._updateTrail(deltaSeconds);
 
     if (this._crash || length > 1000 || altitude < -20) {
       this.delete();
     }
+  }
+
+  private _updateTrail(deltaSeconds: number): void {
+    const v = this._body.velocity;
+    const speedSq = v.x * v.x + v.y * v.y + v.z * v.z;
+    if (this._crash || speedSq < 64) {
+      this._trailMaterial.opacity = 0;
+      return;
+    }
+    const speed = Math.sqrt(speedSq);
+    this._trailDir.set(v.x / speed, v.y / speed, v.z / speed);
+
+    const length = Math.max(
+      8,
+      Math.min(GAME_CONFIG.EFFECTS.TRAIL_MAX_LENGTH, speed * 0.35),
+    );
+
+    this._trail.position.set(
+      this._body.position.x - this._trailDir.x * length * 0.5,
+      this._body.position.y - this._trailDir.y * length * 0.5,
+      this._body.position.z - this._trailDir.z * length * 0.5,
+    );
+    this._trail.scale.set(length * 0.4, length, 1);
+
+    const maxOpacity = GAME_CONFIG.EFFECTS.TRAIL_MAX_OPACITY;
+    const target =
+      this._crash || speedSq < 64
+        ? 0
+        : Math.min(
+            maxOpacity,
+            0.12 + (speed / GAME_CONFIG.METEORS.MAX_SPEED) * maxOpacity * 0.8,
+          );
+    // Frame-rate independent exponential smoothing.
+    const factor = 1 - Math.exp(-8 * deltaSeconds);
+    this._trailMaterial.opacity +=
+      (target - this._trailMaterial.opacity) * factor;
   }
 
   private _checkPlayerHit(): void {

@@ -9,7 +9,7 @@ type CoinParams = {
   controller: CharacterController;
   activeCoins: Map<string, Coin>;
   reservedCoins: Map<string, Coin>;
-  addScore: (points: number) => void;
+  addScore: (points: number, position?: THREE.Vector3) => void;
   audio: AudioManager;
   model: THREE.Group; // shared, preloaded template; cloned per instance
 };
@@ -89,7 +89,7 @@ export class Coin {
     if (distSq < threshold) {
       this._params.audio.play('coin', 0.5);
       this.hideCoin();
-      this._params.addScore(1);
+      this._params.addScore(1, this._mesh.position);
       return;
     }
 

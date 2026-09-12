@@ -4,6 +4,7 @@ import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader.js';
 import {GAME_CONFIG} from './config';
 import {Ball, Stars, Moon, Planet, Meteor, Coin, Heart} from './objects';
 import {TargetRing} from './effects/targetRing';
+import {ParticleEffects} from './effects/particles';
 import {CharacterController} from './character';
 import {AudioManager} from './audio';
 
@@ -15,6 +16,8 @@ type EnvironmentParams = {
   controller: CharacterController;
   onGameOver: () => void;
   onUpdateScore: (score: number) => void;
+  onScorePopup?: (position: THREE.Vector3, amount: number) => void;
+  shakeCamera?: (strength: number) => void;
   registerPhysicsBody?: (body: CANNON.Body) => void;
   unregisterPhysicsBody?: (body: CANNON.Body) => void;
   audio: AudioManager;
@@ -33,6 +36,7 @@ export class Environment {
   private _maxHearts = GAME_CONFIG.HEARTS.MAX_HEARTS;
   private _reservedHearts: Map<string, Heart>;
   private _rings: TargetRing[] = [];
+  private _effects: ParticleEffects;
   private _maxMeteors: number;
   private _activeMeteors: Map<string, Meteor>;
   private _reservedMeteors: Map<string, Meteor>;
@@ -60,6 +64,7 @@ export class Environment {
     this._reservedCoins = new Map<string, Coin>();
     this._activeHearts = new Map<string, Heart>();
     this._reservedHearts = new Map<string, Heart>();
+    this._effects = new ParticleEffects({scene: this._params.scene});
     await Promise.all([
       this._createStars(),
       this._createMoon(),
@@ -73,9 +78,12 @@ export class Environment {
 
   public score = 0;
 
-  private addScore(amount: number = 1) {
+  private addScore(amount = 1, position?: THREE.Vector3) {
     this.score += amount;
     this._params.onUpdateScore(this.score);
+    if (position) {
+      this._params.onScorePopup?.(position, amount);
+    }
   }
 
   private async _createPlanet() {
@@ -107,6 +115,10 @@ export class Environment {
     });
     this.score = 0;
     this._params.onUpdateScore(this.score);
+  }
+
+  public resetEffects(): void {
+    this._effects.reset();
   }
 
   public startMeteors() {
@@ -174,6 +186,8 @@ export class Environment {
           showCoin: this._showCoin.bind(this),
           showHeart: this._showHeart.bind(this),
           ring,
+          effects: this._effects,
+          onImpact: this._params.shakeCamera,
           registerPhysicsBody: this._params.registerPhysicsBody,
           unregisterPhysicsBody: this._params.unregisterPhysicsBody,
         });
@@ -201,9 +215,9 @@ export class Environment {
     heart.show(position);
   }
 
-  private _onHeartCollected() {
+  private _onHeartCollected(position: THREE.Vector3) {
     if (this._params.controller.restoreHeart()) return;
-    this.addScore(5);
+    this.addScore(5, position);
   }
 
   private async _initialiseCoins() {
@@ -237,7 +251,8 @@ export class Environment {
         controller: this._params.controller,
         activeHearts: this._activeHearts,
         reservedHearts: this._reservedHearts,
-        onCollect: this._onHeartCollected.bind(this),
+        onCollect: (position: THREE.Vector3) =>
+          this._onHeartCollected(position),
         audio: this._params.audio,
       });
       this._reservedHearts.set(key, heart);
@@ -295,6 +310,8 @@ export class Environment {
 
     this._activeCoins.forEach(coin => coin.animate());
     this._activeHearts.forEach(heart => heart.animate());
+
+    this._effects.update(deltaSeconds);
   }
 
   animate() {

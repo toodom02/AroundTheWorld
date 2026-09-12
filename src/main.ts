@@ -8,6 +8,7 @@ import {ThirdPersonCamera} from './camera';
 import {Environment} from './environment';
 import {Menu} from './menu';
 import {AudioManager} from './audio';
+import {ScorePopups} from './effects/scorePopups';
 
 enum WorldState {
   INITIALIZING,
@@ -27,6 +28,7 @@ export class World {
   private _controls: CharacterController;
   private _thirdPersonCamera: ThirdPersonCamera;
   private _environ: Environment;
+  private _scorePopups: ScorePopups;
   private _cannonDebugRenderer?: ReturnType<typeof CannonDebuggerType>;
   private _groundMaterial: CANNON.Material;
   private _dirLight: THREE.DirectionalLight;
@@ -57,6 +59,8 @@ export class World {
     this._initScene();
     this._initLighting();
     this._initPhysics();
+
+    this._scorePopups = new ScorePopups(this._camera);
 
     await this._loadPlayer();
     await this._loadEnvironment();
@@ -214,12 +218,24 @@ export class World {
       controller: this._controls,
       onGameOver: this._onGameOver.bind(this),
       onUpdateScore: (score: number) => this._menu.UpdateScore(score),
+      onScorePopup: (position: THREE.Vector3, amount: number) =>
+        this._spawnScorePopup(position, amount),
+      shakeCamera: (strength: number) =>
+        this._thirdPersonCamera?.shake(strength),
       registerPhysicsBody: (body: CANNON.Body) =>
         this._registerDynamicBody(body),
       unregisterPhysicsBody: (body: CANNON.Body) =>
         this._unregisterDynamicBody(body),
       audio: this._audio,
     });
+  }
+
+  private _spawnScorePopup(position: THREE.Vector3, amount: number): void {
+    this._scorePopups.spawn(
+      position,
+      `+${amount}`,
+      amount >= 5 ? '#ff6b81' : '#ffd74a',
+    );
   }
 
   private _initMenu(): void {
@@ -244,6 +260,8 @@ export class World {
     this._thirdPersonCamera.startTransition();
     this._environ.startMeteors();
     this._environ.resetCoins();
+    this._environ.resetEffects();
+    this._scorePopups.clear();
   }
 
   private _onGameOver(): void {
@@ -375,6 +393,8 @@ export class World {
         this._update(deltaSeconds);
         this._environ.handlePhysicsObjects(deltaSeconds);
       }
+
+      this._scorePopups.update(deltaSeconds);
 
       if (this._debug && this._cannonDebugRenderer) {
         this._cannonDebugRenderer.update();
