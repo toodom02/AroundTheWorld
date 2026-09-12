@@ -11,8 +11,8 @@ export const GAME_CONFIG = {
   },
   CAMERA: {
     TRANSITION_DURATION: 4,
-    OFFSET: { x: -15, y: 28, z: -30 },
-    LOOKAT_OFFSET: { x: 0, y: 18, z: 50 },
+    OFFSET: {x: -15, y: 28, z: -30},
+    LOOKAT_OFFSET: {x: 0, y: 18, z: 50},
   },
   PHYSICS: {
     GRAVITY_STRENGTH: 1,
@@ -38,6 +38,15 @@ export const GAME_CONFIG = {
     SHADOW_MAP_SIZE: 1024,
     SHADOW_MAP_SIZE_MOBILE: 512,
     DEFAULT_PIXEL_RATIO_CAP: 2,
+    // Tier 0 = high, 1 = medium, 2 = low (adaptive quality scaling).
+    QUALITY_TIERS: {
+      MIN_FPS_LOW: 40, // sustained fps below this lowers the tier
+      MIN_FPS_HIGH: 55, // sustained fps above this may raise the tier
+      TIER_MS: 2000, // window (ms) over which fps is averaged
+      PIXEL_RATIOS: [2, 1, 1],
+      SHADOW_MAP_SIZES: [1024, 512, 256],
+    },
+    QUALITY_STORAGE_KEY: 'atw-quality-tier',
   },
   OUT_OF_BOUNDS_DISTANCE: 250,
 } as const;
