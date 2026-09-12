@@ -76,8 +76,11 @@ export class Coin {
     this._params.reservedCoins.set(this._params.key, this);
   }
 
-  public animate() {
-    this._mesh.rotateOnAxis(this._spinAxis, this._spinAngle);
+  public animate(deltaSeconds: number) {
+    this._mesh.rotateOnAxis(
+      this._spinAxis,
+      this._spinAngle * deltaSeconds * 60,
+    );
 
     const playerPos = this._params.controller.body.position;
     const coinPos = this._mesh.position;

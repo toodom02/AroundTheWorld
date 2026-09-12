@@ -32,7 +32,7 @@
 
         <div class="menu" id="menu">
             <h1 id="title">Around The World</h1>
-            <div class="start-button" id="start-button" tabindex=0>Loading...</div>
+            <button class="start-button" id="start-button" type="button">Loading...</button>
         </div>
 
         <div class="menu" id="gameover">
@@ -40,7 +40,7 @@
             <div id="gameover-score-div">
                 Score: <p id="gameover-score">0</p>
             </div>
-            <div class="start-button loaded" id="restart-button" tabindex=0>Restart</div>
+            <button class="start-button loaded" id="restart-button" type="button">Restart</button>
         </div>
 
         <div id="scorediv">
@@ -59,7 +59,7 @@
             <a href="https://github.com/toodom02/AroundTheWorld" target="_blank">GitHub</a>
         </div>
 
-        <div id="music-control" class="unmute" tabindex="0" role="button" aria-label="Mute music" title="Mute music">
+        <button id="music-control" class="unmute" type="button" aria-label="Mute music" title="Mute music">
             <audio id="audio-music" preload="auto" loop>
                 <source src="./resources/background.mp3" type="audio/mpeg">
             </audio>
@@ -69,7 +69,7 @@
             <audio id="audio-heart" preload="auto">
                 <source src="./resources/heart.mp3" type="audio/mpeg">
             </audio>
-        </div>
+        </button>
     </body>
 
 </html>

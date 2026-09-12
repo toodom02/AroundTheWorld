@@ -8,11 +8,6 @@ type ScorePopupNode = {
   active: boolean;
 };
 
-/**
- * Pooled floating score popups. Pickup points live in world space (they are
- * re-projected every frame, so they track the rotating planet), while the
- * popup text floats upward and fades in screen space.
- */
 export class ScorePopups {
   private _camera: THREE.PerspectiveCamera;
   private _container: HTMLElement;
@@ -79,7 +74,10 @@ export class ScorePopups {
 
       this._projected.copy(node.world).project(this._camera);
       const behindCamera = this._projected.z > 1;
-      if (behindCamera) continue;
+      if (behindCamera) {
+        node.element.style.display = 'none';
+        continue;
+      }
 
       node.element.style.display = 'block';
       const x = (this._projected.x * 0.5 + 0.5) * width;

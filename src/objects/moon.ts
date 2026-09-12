@@ -30,9 +30,10 @@ export class Moon {
     this._pivotPoint.add(this._moon);
   }
 
-  public animate(): void {
-    this._pivotPoint.rotation.x += 0.00002;
-    this._pivotPoint.rotation.y += 0.00005;
-    this._pivotPoint.rotation.z += 0.00001;
+  public animate(deltaSeconds: number): void {
+    const frameScale = deltaSeconds * 60;
+    this._pivotPoint.rotation.x += 0.00002 * frameScale;
+    this._pivotPoint.rotation.y += 0.00005 * frameScale;
+    this._pivotPoint.rotation.z += 0.00001 * frameScale;
   }
 }

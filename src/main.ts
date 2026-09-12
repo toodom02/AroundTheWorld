@@ -384,7 +384,7 @@ export class World {
       const deltaSeconds = Math.min(deltaMs * 0.001, 0.1);
 
       this._adaptQuality(deltaSeconds);
-      this._environ.animate();
+      this._environ.animate(deltaSeconds);
 
       if (
         this._state === WorldState.PLAYING ||

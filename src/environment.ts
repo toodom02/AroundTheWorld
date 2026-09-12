@@ -308,19 +308,19 @@ export class Environment {
       meteor.updatePosition(deltaSeconds);
     });
 
-    this._activeCoins.forEach(coin => coin.animate());
-    this._activeHearts.forEach(heart => heart.animate());
+    this._activeCoins.forEach(coin => coin.animate(deltaSeconds));
+    this._activeHearts.forEach(heart => heart.animate(deltaSeconds));
 
     this._effects.update(deltaSeconds);
   }
 
-  animate() {
+  animate(deltaSeconds: number) {
     if (this._stars) {
-      this._stars.animate();
+      this._stars.animate(deltaSeconds);
     }
 
     if (this._moon) {
-      this._moon.animate();
+      this._moon.animate(deltaSeconds);
     }
   }
 }

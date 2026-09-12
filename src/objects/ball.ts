@@ -45,9 +45,9 @@ export class Ball {
       material: this._params.groundMaterial,
       linearDamping: 0.5,
       angularDamping: 0.3,
-      // Only collide with the planet (group 1), never the player or meteors.
+      // Collide with the planet and player, never meteors.
       collisionFilterGroup: 8,
-      collisionFilterMask: 1,
+      collisionFilterMask: 1 | 4,
     });
     this._ballBody.position = new CANNON.Vec3(
       this._ball.position.x,
