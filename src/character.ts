@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import * as CANNON from 'cannon-es';
-import { GAME_CONFIG } from './config';
-import { CharacterFSM } from './characterAnimations';
-import { CharacterControllerInput } from './characterInput';
-import { AudioManager } from './audio';
+import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader.js';
+import {GAME_CONFIG} from './config';
+import {CollideEvent} from './collide';
+import {CharacterFSM} from './characterAnimations';
+import {CharacterControllerInput} from './characterInput';
+import {AudioManager} from './audio';
 
 type Animation = {
   readonly action: THREE.AnimationAction;
@@ -33,7 +34,9 @@ type CharacterControllerParams = {
 };
 
 export class CharacterController {
-  static async create(params: CharacterControllerParams): Promise<CharacterController> {
+  static async create(
+    params: CharacterControllerParams,
+  ): Promise<CharacterController> {
     const controller = new CharacterController(params);
     await controller._init();
     return controller;
@@ -55,6 +58,8 @@ export class CharacterController {
   private _matrix = new THREE.Matrix4();
   private _baseQuat = new THREE.Quaternion();
   private _yawQuat = new THREE.Quaternion();
+  private _yawResultQuat = new THREE.Quaternion();
+  private _jumpForceVec3 = new CANNON.Vec3();
   private _offset = new THREE.Vector3();
   private _playerPosition = new THREE.Vector3();
 
@@ -88,7 +93,11 @@ export class CharacterController {
     const loader = new FBXLoader();
     loader.setPath('./resources/models/');
 
-    const fbx = await this._loadFBXWithTimeout<THREE.Group>(loader, 'timmy.fbx', 30000);
+    const fbx = await this._loadFBXWithTimeout<THREE.Group>(
+      loader,
+      'timmy.fbx',
+      30000,
+    );
 
     fbx.scale.setScalar(0.1);
     fbx.traverse(child => (child.castShadow = true));
@@ -104,22 +113,23 @@ export class CharacterController {
   private _loadFBXWithTimeout<T>(
     loader: FBXLoader,
     path: string,
-    timeout: number = 30000
+    timeout: number = 30000,
   ): Promise<T> {
     return Promise.race([
       new Promise<T>((resolve, reject) => {
         loader.load(
           path,
-          (model) => resolve(model as T),
+          model => resolve(model as T),
           undefined,
-          (error) => reject(new Error(`Failed to load ${path}: ${error}`))
+          error => reject(new Error(`Failed to load ${path}: ${error}`)),
         );
       }),
       new Promise<T>((_, reject) =>
         setTimeout(
-          () => reject(new Error(`Loading ${path} timed out after ${timeout}ms`)),
-          timeout
-        )
+          () =>
+            reject(new Error(`Loading ${path} timed out after ${timeout}ms`)),
+          timeout,
+        ),
       ),
     ]);
   }
@@ -151,11 +161,14 @@ export class CharacterController {
     const contactNormal = new CANNON.Vec3();
     const localUp = new CANNON.Vec3();
 
-    this._playerBody.addEventListener('collide', (event: any) => {
-      const { contact } = event;
-      const normal = contact.bi.id === this._playerBody.id
-        ? contact.ni.negate(contactNormal)
-        : contactNormal.copy(contact.ni);
+    this._playerBody.addEventListener('collide', (event: CollideEvent) => {
+      const {contact} = event;
+
+      if (contact.bi.id === this._playerBody.id) {
+        contact.ni.negate(contactNormal);
+      } else {
+        contactNormal.copy(contact.ni);
+      }
 
       localUp.copy(this._playerBody.position).normalize();
       if (contactNormal.dot(localUp) > 0.5) this._canJump = true;
@@ -164,7 +177,9 @@ export class CharacterController {
 
   private async _setupStateMachine() {
     await this._loadAnimations();
-    this._stateMachine = new CharacterFSM(new CharacterControllerProxy(this._animations));
+    this._stateMachine = new CharacterFSM(
+      new CharacterControllerProxy(this._animations),
+    );
     this._stateMachine.SetState('idle');
     this._mixer.update(0);
   }
@@ -174,26 +189,28 @@ export class CharacterController {
     const loader = new FBXLoader();
     loader.setPath('./resources/animations/');
 
-    const animationNames = ['idle', 'walk', 'run', 'walkback', 'runback', 'dying'];
+    const animationNames = [
+      'idle',
+      'walk',
+      'run',
+      'walkback',
+      'runback',
+      'dying',
+    ];
 
     const promises = animationNames.map((name: string) =>
-      new Promise<void>(async (resolve, reject) => {
-        try {
-          const anim = await this._loadFBXWithTimeout<THREE.Group>(loader, `${name}.fbx`, 30000);
+      this._loadFBXWithTimeout<THREE.Group>(loader, `${name}.fbx`, 30000).then(
+        anim => {
           const clip = anim.animations[0];
           if (!clip) {
-            reject(new Error(`No animation clip found in ${name}.fbx`));
-            return;
+            throw new Error(`No animation clip found in ${name}.fbx`);
           }
           this._animations[name] = {
             clip,
             action: this._mixer.clipAction(clip),
           };
-          resolve();
-        } catch (error) {
-          reject(error);
-        }
-      }),
+        },
+      ),
     );
 
     await Promise.all(promises);
@@ -248,7 +265,9 @@ export class CharacterController {
     this._applyYaw(timeInSeconds);
     this._syncVisuals();
 
-    if (this._playerBody.position.length() > GAME_CONFIG.OUT_OF_BOUNDS_DISTANCE) {
+    if (
+      this._playerBody.position.length() > GAME_CONFIG.OUT_OF_BOUNDS_DISTANCE
+    ) {
       this.isHit = true;
       this._params.onGameOver();
     }
@@ -283,7 +302,7 @@ export class CharacterController {
   }
 
   private _applyMovement(delta: number) {
-    const { forward, backward, run, jump } = this._input.move;
+    const {forward, backward, run, jump} = this._input.move;
     const acc = run ? 3 : 1;
 
     if (jump && this._canJump) {
@@ -294,7 +313,7 @@ export class CharacterController {
 
     if (this._jumpForceDuration > 0) {
       const forceAmount = this._jumpForceStrength * delta;
-      const jumpForce = new CANNON.Vec3(
+      const jumpForce = this._jumpForceVec3.set(
         this._localUp.x * forceAmount,
         this._localUp.y * forceAmount,
         this._localUp.z * forceAmount,
@@ -303,7 +322,7 @@ export class CharacterController {
       this._jumpForceDuration -= delta;
     }
 
-    const moveAmount = (forward - backward);
+    const moveAmount = forward - backward;
     const isMoving = Math.abs(moveAmount) > 0.01;
     if (isMoving && this._canJump) {
       this._footstepTimer -= delta;
@@ -317,7 +336,7 @@ export class CharacterController {
     if (isMoving) {
       this._inputVelocity.addScaledVector(
         this._localForward,
-        moveAmount * acc * this._velocityFactor * delta * 100
+        moveAmount * acc * this._velocityFactor * delta * 100,
       );
     }
 
@@ -331,24 +350,32 @@ export class CharacterController {
   }
 
   private _applyYaw(delta: number) {
-    const { left, right } = this._input.move;
-    let yaw = (left - right) * Math.PI * delta;
+    const {left, right} = this._input.move;
+    const yaw = (left - right) * Math.PI * delta;
 
-    this._localRight.crossVectors(this._localUp, this._localForward).normalize();
-    this._correctedForward.crossVectors(this._localRight, this._localUp).normalize();
+    this._localRight
+      .crossVectors(this._localUp, this._localForward)
+      .normalize();
+    this._correctedForward
+      .crossVectors(this._localRight, this._localUp)
+      .normalize();
 
-    this._matrix.makeBasis(this._localRight, this._localUp, this._correctedForward);
+    this._matrix.makeBasis(
+      this._localRight,
+      this._localUp,
+      this._correctedForward,
+    );
     this._baseQuat.setFromRotationMatrix(this._matrix);
     this._yawQuat.setFromAxisAngle(this._localUp, yaw).normalize();
 
-    const resultQuat = this._baseQuat.premultiply(this._yawQuat);
+    this._yawResultQuat.copy(this._baseQuat).premultiply(this._yawQuat);
     this._playerBody.quaternion.set(
-      resultQuat.x,
-      resultQuat.y,
-      resultQuat.z,
-      resultQuat.w,
+      this._yawResultQuat.x,
+      this._yawResultQuat.y,
+      this._yawResultQuat.z,
+      this._yawResultQuat.w,
     );
-    this._target.quaternion.copy(resultQuat);
+    this._target.quaternion.copy(this._yawResultQuat);
   }
 
   private _syncVisuals() {
