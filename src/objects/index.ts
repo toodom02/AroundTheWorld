@@ -4,3 +4,4 @@ export * from './moon';
 export * from './planet';
 export * from './meteor';
 export * from './coin';
+export * from './heart';

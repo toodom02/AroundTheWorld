@@ -43,6 +43,7 @@ export class World {
   private _fpsWindowMs = 0;
   private _lowFpsChecks = 0;
   private _highFpsChecks = 0;
+  private _lastHealth: number = GAME_CONFIG.CHARACTER.MAX_HEALTH;
 
   static async create(): Promise<World> {
     const world = new World();
@@ -190,6 +191,16 @@ export class World {
       registerPhysicsBody: (body: CANNON.Body) =>
         this._registerDynamicBody(body),
       onGameOver: this._onGameOver.bind(this),
+      onHealthChange: (health: number) => {
+        if (health < this._lastHealth) {
+          this._menu?.ShowDamage();
+          if ('vibrate' in navigator) {
+            navigator.vibrate?.(80);
+          }
+        }
+        this._lastHealth = health;
+        this._menu?.UpdateHearts(health);
+      },
       audio: this._audio,
     });
   }
@@ -362,7 +373,7 @@ export class World {
         this._state === WorldState.GAME_OVER
       ) {
         this._update(deltaSeconds);
-        this._environ.handlePhysicsObjects();
+        this._environ.handlePhysicsObjects(deltaSeconds);
       }
 
       if (this._debug && this._cannonDebugRenderer) {

@@ -30,6 +30,7 @@ type CharacterControllerParams = {
   initPosition: THREE.Vector3;
   registerPhysicsBody?: (body: CANNON.Body) => void;
   onGameOver: () => void;
+  onHealthChange?: (health: number) => void;
   audio: AudioManager;
 };
 
@@ -70,8 +71,22 @@ export class CharacterController {
   private _jumpForceMaxDuration = GAME_CONFIG.CHARACTER.JUMP_DURATION;
   private _jumpForceStrength = GAME_CONFIG.CHARACTER.JUMP_FORCE;
   private _footstepTimer = 0;
+  private _health = GAME_CONFIG.CHARACTER.MAX_HEALTH;
+  private _iframesRemaining = 0;
 
   isHit = false;
+
+  get health(): number {
+    return this._health;
+  }
+
+  get maxHealth(): number {
+    return GAME_CONFIG.CHARACTER.MAX_HEALTH;
+  }
+
+  get invulnerable(): boolean {
+    return this._iframesRemaining > 0;
+  }
 
   private constructor(private _params: CharacterControllerParams) {}
 
@@ -86,6 +101,11 @@ export class CharacterController {
       allowSleep: false,
       fixedRotation: true,
       material: this._params.groundMaterial,
+      // Only collide with the planet (group 1). Meteors can therefore pass
+      // through the player physically; damage is handled by a distance check
+      // in the meteor, so the player is never shoved into the geometry.
+      collisionFilterGroup: 4,
+      collisionFilterMask: 1,
     });
   }
 
@@ -243,6 +263,63 @@ export class CharacterController {
     this._canJump = true;
     this._footstepTimer = 0;
     this.isHit = false;
+    this._health = GAME_CONFIG.CHARACTER.MAX_HEALTH;
+    this._iframesRemaining = 0;
+    this._notifyHealth();
+  }
+
+  public takeHit(impactDirection: THREE.Vector3): void {
+    if (this.isHit || this.invulnerable) return;
+
+    this._health--;
+    this._iframesRemaining = GAME_CONFIG.CHARACTER.IFRAMES_DURATION;
+    this._applyKnockback(impactDirection);
+    this._notifyHealth();
+
+    if (this._health <= 0) {
+      this.isHit = true;
+      this._params.onGameOver();
+    }
+  }
+
+  public restoreHeart(): boolean {
+    if (this._health >= GAME_CONFIG.CHARACTER.MAX_HEALTH) return false;
+    this._health++;
+    this._notifyHealth();
+    return true;
+  }
+
+  private _applyKnockback(impactDirection: THREE.Vector3): void {
+    const position = this._playerBody.position;
+    const length = Math.sqrt(
+      position.x * position.x +
+        position.y * position.y +
+        position.z * position.z,
+    );
+    if (length < 1e-6) return;
+
+    const upX = position.x / length;
+    const upY = position.y / length;
+    const upZ = position.z / length;
+
+    const dot =
+      impactDirection.x * upX +
+      impactDirection.y * upY +
+      impactDirection.z * upZ;
+    const tX = impactDirection.x - upX * dot;
+    const tY = impactDirection.y - upY * dot;
+    const tZ = impactDirection.z - upZ * dot;
+    const tLen = Math.sqrt(tX * tX + tY * tY + tZ * tZ);
+    if (tLen < 1e-4) return;
+
+    const strength = GAME_CONFIG.CHARACTER.KNOCKBACK_STRENGTH;
+    this._playerBody.velocity.x += (tX / tLen) * strength;
+    this._playerBody.velocity.y += (tY / tLen) * strength;
+    this._playerBody.velocity.z += (tZ / tLen) * strength;
+  }
+
+  private _notifyHealth(): void {
+    this._params.onHealthChange?.(this._health);
   }
 
   public Enable() {
@@ -255,6 +332,13 @@ export class CharacterController {
 
   public Update(timeInSeconds: number) {
     if (!this._target) return;
+
+    if (this._iframesRemaining > 0) {
+      this._iframesRemaining -= timeInSeconds;
+      if (this._iframesRemaining <= 0) {
+        this._iframesRemaining = 0;
+      }
+    }
 
     this._inputVelocity.set(0, 0, 0);
     this._input.isHit = this.isHit;

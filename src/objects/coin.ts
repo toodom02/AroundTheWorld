@@ -18,6 +18,7 @@ export class Coin {
   private _mesh: THREE.Group;
   private _spinAxis = new THREE.Vector3(1, 0, 0);
   private _spinAngle = GAME_CONFIG.COINS.SPIN_RATE;
+  private _birthTime = 0;
 
   private constructor(private _params: CoinParams) {}
 
@@ -51,6 +52,7 @@ export class Coin {
 
   public showCoin(position: THREE.Vector3): void {
     this._params.reservedCoins.delete(this._params.key);
+    this._birthTime = performance.now();
 
     const up = position.clone().normalize();
     const elevatedPosition = position
@@ -88,6 +90,13 @@ export class Coin {
       this._params.audio.play('coin', 0.5);
       this.hideCoin();
       this._params.addScore(1);
+      return;
+    }
+
+    // Uncollected coins fade back to the pool so meteors can keep dropping
+    // loot instead of exhausting the finite pool.
+    if (performance.now() - this._birthTime >= GAME_CONFIG.COINS.LIFETIME_MS) {
+      this.hideCoin();
     }
   }
 }
