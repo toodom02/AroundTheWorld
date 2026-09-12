@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { GAME_CONFIG } from './config';
-import { Ball, Stars, Moon, Planet, Meteor, Coin } from './objects';
-import { CharacterController } from './character';
-import { AudioManager } from './audio';
+import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader.js';
+import {GAME_CONFIG} from './config';
+import {Ball, Stars, Moon, Planet, Meteor, Coin} from './objects';
+import {CharacterController} from './character';
+import {AudioManager} from './audio';
 
 type EnvironmentParams = {
   scene: THREE.Scene;
@@ -88,7 +89,7 @@ export class Environment {
   }
 
   public resetCoins() {
-    this._activeCoins.forEach((coin, _) => {
+    this._activeCoins.forEach(coin => {
       coin.hideCoin();
     });
     this.score = 0;
@@ -97,7 +98,7 @@ export class Environment {
 
   public startMeteors() {
     this._maxMeteors = this._initialMeteors;
-    this._activeMeteors.forEach((meteor, _) => {
+    this._activeMeteors.forEach(meteor => {
       meteor.delete();
     });
 
@@ -116,11 +117,16 @@ export class Environment {
   }
 
   private async _initialiseMeteors() {
-    const meteorPromises = Array.from({ length: this._maxMeteorsLimit })
-      .map(async () => {
+    const template = await this._loadFBXModel(
+      'meteor.fbx',
+      './resources/models/',
+    );
+    const meteorPromises = Array.from({length: this._maxMeteorsLimit}).map(
+      async () => {
         const key = (Math.random() + 1).toString(36).substring(7);
         const meteor = await Meteor.create({
           key,
+          model: template,
           scene: this._params.scene,
           world: this._params.world,
           controller: this._params.controller,
@@ -135,7 +141,8 @@ export class Environment {
           unregisterPhysicsBody: this._params.unregisterPhysicsBody,
         });
         this._reservedMeteors.set(key, meteor);
-      });
+      },
+    );
     await Promise.all(meteorPromises);
   }
 
@@ -152,21 +159,38 @@ export class Environment {
   }
 
   private async _initialiseCoins() {
-    const coinPromises = Array.from({ length: this._maxCoins })
-      .map(async () => {
-        const key = (Math.random() + 1).toString(36).substring(7);
-        const coin = await Coin.create({
-          key,
-          scene: this._params.scene,
-          controller: this._params.controller,
-          activeCoins: this._activeCoins,
-          reservedCoins: this._reservedCoins,
-          addScore: this.addScore.bind(this),
-          audio: this._params.audio,
-        });
-        this._reservedCoins.set(key, coin);
+    const template = await this._loadFBXModel(
+      'coin.fbx',
+      './resources/models/',
+    );
+    const coinPromises = Array.from({length: this._maxCoins}).map(async () => {
+      const key = (Math.random() + 1).toString(36).substring(7);
+      const coin = await Coin.create({
+        key,
+        model: template,
+        scene: this._params.scene,
+        controller: this._params.controller,
+        activeCoins: this._activeCoins,
+        reservedCoins: this._reservedCoins,
+        addScore: this.addScore.bind(this),
+        audio: this._params.audio,
       });
+      this._reservedCoins.set(key, coin);
+    });
     await Promise.all(coinPromises);
+  }
+
+  private _loadFBXModel(path: string, directory: string): Promise<THREE.Group> {
+    return new Promise((resolve, reject) => {
+      const loader = new FBXLoader();
+      loader.setPath(directory);
+      loader.load(
+        path,
+        model => resolve(model),
+        undefined,
+        error => reject(error),
+      );
+    });
   }
 
   private async _createMoon() {

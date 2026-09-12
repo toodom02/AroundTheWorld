@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
-import { CharacterController } from '../character';
-import { AudioManager } from '../audio';
+import {CharacterController} from '../character';
+import {AudioManager} from '../audio';
+import {GAME_CONFIG} from '../config';
 
 type CoinParams = {
   key: string;
@@ -11,12 +11,13 @@ type CoinParams = {
   reservedCoins: Map<string, Coin>;
   addScore: (points: number) => void;
   audio: AudioManager;
+  model: THREE.Group; // shared, preloaded template; cloned per instance
 };
 
 export class Coin {
   private _mesh: THREE.Group;
   private _spinAxis = new THREE.Vector3(1, 0, 0);
-  private _spinAngle = Math.PI / 180;
+  private _spinAngle = GAME_CONFIG.COINS.SPIN_RATE;
 
   private constructor(private _params: CoinParams) {}
 
@@ -27,18 +28,16 @@ export class Coin {
   }
 
   private async _init(): Promise<void> {
-    const loader = new FBXLoader();
-    loader.setPath('./resources/models/');
-
-    const fbx: THREE.Group = await new Promise((resolve, reject) => {
-      loader.load('coin.fbx', resolve, undefined, reject);
-    });
+    const fbx: THREE.Group = this._params.model.clone();
 
     fbx.traverse(c => {
       c.castShadow = true;
       if ((c as THREE.Mesh).isMesh) {
         const mesh = c as THREE.Mesh;
-        if (mesh.material && (mesh.material as THREE.MeshPhongMaterial).isMeshPhongMaterial) {
+        if (
+          mesh.material &&
+          (mesh.material as THREE.MeshPhongMaterial).isMeshPhongMaterial
+        ) {
           const material = mesh.material as THREE.MeshPhongMaterial;
           material.emissiveIntensity = 1;
         }
@@ -54,13 +53,14 @@ export class Coin {
     this._params.reservedCoins.delete(this._params.key);
 
     const up = position.clone().normalize();
-    const elevatedPosition = position.clone().add(up.clone().multiplyScalar(10));
+    const elevatedPosition = position
+      .clone()
+      .add(up.clone().multiplyScalar(10));
     this._mesh.position.copy(elevatedPosition);
-
 
     const targetQuat = new THREE.Quaternion().setFromUnitVectors(
       new THREE.Vector3(1, 0, 0),
-      up
+      up,
     );
     this._mesh.quaternion.copy(targetQuat);
 
@@ -83,7 +83,7 @@ export class Coin {
     const dy = coinPos.y - playerPos.y;
     const dz = coinPos.z - playerPos.z;
     const distSq = dx * dx + dy * dy + dz * dz;
-    const threshold = 8 * 8;
+    const threshold = GAME_CONFIG.COINS.COLLECTION_DISTANCE_SQUARED;
     if (distSq < threshold) {
       this._params.audio.play('coin', 0.5);
       this.hideCoin();
