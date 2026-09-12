@@ -8,13 +8,6 @@ type TargetRingParams = {
   scene: THREE.Scene;
 };
 
-/**
- * Faint pulsing target ring drawn like a light projection on the planet
- * surface where an incoming meteor is predicted to land. Additive blending and
- * a raycast surface anchor make it hug the actual (bumpy) terrain instead of
- * floating above the perfect-sphere ground; it grows brighter as the meteor
- * approaches.
- */
 export class TargetRing {
   private _mesh: THREE.Mesh;
   private _material: THREE.MeshBasicMaterial;

@@ -108,6 +108,10 @@ h1 {
 }
 
 .unmute {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background-color: transparent;
   z-index: 2;
   position: absolute;
   bottom: 0;
@@ -168,7 +172,10 @@ h1 {
 }
 
 .start-button {
+  appearance: none;
+  background: transparent;
   border: 2px solid #ffffff;
+  color: inherit;
   height: 3em;
   width: 10em;
   border-radius: 5px;
@@ -176,6 +183,7 @@ h1 {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  font: inherit;
 }
 
 .loaded {

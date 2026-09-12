@@ -101,11 +101,10 @@ export class CharacterController {
       allowSleep: false,
       fixedRotation: true,
       material: this._params.groundMaterial,
-      // Only collide with the planet (group 1). Meteors can therefore pass
-      // through the player physically; damage is handled by a distance check
-      // in the meteor, so the player is never shoved into the geometry.
+      // Collide with the planet and ball, but not meteors. Meteor damage is
+      // handled by a distance check so meteors never shove the player.
       collisionFilterGroup: 4,
-      collisionFilterMask: 1,
+      collisionFilterMask: 1 | 8,
     });
   }
 

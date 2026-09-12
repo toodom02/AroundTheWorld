@@ -13,11 +13,6 @@ type HeartParams = {
   audio: AudioManager;
 };
 
-/**
- * Heart pickup dropped by elite meteors. Stands upright on the ground and
- * turns to face the player so it reads clearly as a collectible; restores one
- * HP on collection.
- */
 export class Heart {
   private _mesh: THREE.Mesh;
   private _lifeTimer = 0;
@@ -84,6 +79,7 @@ export class Heart {
   public show(position: THREE.Vector3): void {
     this._params.reservedHearts.delete(this._params.key);
     this._birthTime = performance.now();
+    this._lifeTimer = 0;
 
     const up = this._up.copy(position).normalize();
     this._basePoint
@@ -103,12 +99,11 @@ export class Heart {
     this._params.reservedHearts.set(this._params.key, this);
   }
 
-  public animate(): void {
-    this._lifeTimer += 1 / 60;
+  public animate(deltaSeconds: number): void {
+    this._lifeTimer += deltaSeconds;
 
     this._facePlayer();
 
-    // Gentle bob along the local "up" (radial) so it reads as a float pickup.
     const up = this._up.set(
       this._basePoint.x,
       this._basePoint.y,
@@ -133,8 +128,6 @@ export class Heart {
       return;
     }
 
-    // Uncollected hearts fade back to the pool so elite meteors can keep
-    // dropping them.
     if (performance.now() - this._birthTime >= GAME_CONFIG.HEARTS.LIFETIME_MS) {
       this.hide();
     }

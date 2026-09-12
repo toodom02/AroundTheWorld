@@ -17,9 +17,6 @@ type RingFx = {
   toScale: number;
 };
 
-// One pooled GPU point cloud serves every explosion. Additive blending means a
-// particle simply fades out by driving its color (and size) toward zero, so no
-// per-particle alpha attribute is needed.
 const PARTICLE_VERTEX_SHADER = `
   attribute float aSize;
   attribute vec3 aColor;
@@ -42,10 +39,6 @@ const PARTICLE_FRAGMENT_SHADER = `
   }
 `;
 
-/**
- * Pooled impact effects: a hot spark/smoke burst plus an expanding shockwave
- * ring, fired from the point a meteor punches into the ground.
- */
 export class ParticleEffects {
   private _points: THREE.Points;
   private _geometry: THREE.BufferGeometry;
@@ -140,7 +133,6 @@ export class ParticleEffects {
     }
   }
 
-  /** Fire an impact burst at a ground point, sparks + smoke + shockwave ring. */
   public burst(
     position: THREE.Vector3,
     normal: THREE.Vector3,
@@ -153,8 +145,6 @@ export class ParticleEffects {
     this._normal.copy(normal).normalize();
     if (this._normal.lengthSq() < 1e-6) this._normal.set(0, 1, 0);
 
-    // Hot core sparks (small, fast, short life) + soft smoke puffs (large,
-    // slow, longer life) all share the same pooled point cloud.
     for (let i = 0; i < sparkCount + smokeCount; i++) {
       const isSmoke = i >= sparkCount;
       const slot = this._cursor++ % GAME_CONFIG.EFFECTS.PARTICLE_BUDGET;
@@ -200,7 +190,6 @@ export class ParticleEffects {
         : 5 + Math.random() * 6;
       this._sizes[slot] = this._baseSizes[slot];
 
-      // Base colors; elite impacts burn hotter/wider.
       if (isSmoke) {
         const s = 0.55 + Math.random() * 0.3;
         this._baseColors[i3] = 0.5 * s;
@@ -221,8 +210,6 @@ export class ParticleEffects {
       this._colors[i3 + 1] = this._baseColors[i3 + 1];
       this._colors[i3 + 2] = this._baseColors[i3 + 2];
 
-      // Constant world-space jitter keeps the burst a tight cluster at the
-      // impact point (scaled by meteor size, never by the pool slot index).
       const spread = 0.8 + radius * 0.06;
       this._positions[i3] = position.x + (Math.random() - 0.5) * spread;
       this._positions[i3 + 1] = position.y + (Math.random() - 0.5) * spread;

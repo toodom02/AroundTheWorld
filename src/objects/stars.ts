@@ -71,9 +71,10 @@ export class Stars {
     this._params.scene.add(this._particlesMesh);
   }
 
-  public animate(): void {
-    this._particlesMesh.rotation.x += 0.00001;
-    this._particlesMesh.rotation.y += 0.00001;
-    this._particlesMesh.rotation.z += 0.00001;
+  public animate(deltaSeconds: number): void {
+    const frameScale = deltaSeconds * 60;
+    this._particlesMesh.rotation.x += 0.00001 * frameScale;
+    this._particlesMesh.rotation.y += 0.00001 * frameScale;
+    this._particlesMesh.rotation.z += 0.00001 * frameScale;
   }
 }
