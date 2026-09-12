@@ -28,6 +28,8 @@
 
         <div id="joystick"></div>
 
+        <div id="damage-vignette" aria-hidden="true"></div>
+
         <div class="menu" id="menu">
             <h1 id="title">Around The World</h1>
             <div class="start-button" id="start-button" tabindex=0>Loading...</div>
@@ -45,6 +47,12 @@
             Score: <p id="score">0</p>
         </div>
 
+        <div id="hearts" aria-live="polite" aria-label="Health">
+            <span class="heart" aria-hidden="true">&#9829;</span>
+            <span class="heart" aria-hidden="true">&#9829;</span>
+            <span class="heart" aria-hidden="true">&#9829;</span>
+        </div>
+
         <div class="footer">
             <a href="https://github.com/toodom02/AroundTheWorld" target="_blank">GitHub</a>
         </div>
@@ -55,6 +63,9 @@
             </audio>
             <audio id="audio-coin" preload="auto">
                 <source src="./resources/coin.mp3" type="audio/mpeg">
+            </audio>
+            <audio id="audio-heart" preload="auto">
+                <source src="./resources/heart.mp3" type="audio/mpeg">
             </audio>
         </div>
     </body>

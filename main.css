@@ -35,6 +35,47 @@ h1 {
   padding-left: 0.5em;
 }
 
+#hearts {
+  z-index: 2;
+  position: absolute;
+  top: 1em;
+  right: 1.2em;
+  display: none;
+  gap: 0.35em;
+}
+
+.heart {
+  font-size: 2rem;
+  line-height: 1;
+  color: #ff2244;
+  text-shadow: 0 0 0.4em #ff2244, 0 0 0.8em #aa1133;
+  transition: color 0.25s ease, text-shadow 0.25s ease;
+}
+
+.heart.empty {
+  color: #333;
+  text-shadow: none;
+}
+
+#damage-vignette {
+  z-index: 4;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 0, 0, 0) 45%,
+    rgba(200, 0, 0, 0.55) 100%
+  );
+  transition: opacity 0.12s ease-in;
+}
+
+#damage-vignette.active {
+  opacity: 1;
+  transition: opacity 0.4s ease-out;
+}
+
 .footer {
   z-index: 2;
   position: absolute;

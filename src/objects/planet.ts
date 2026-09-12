@@ -52,6 +52,10 @@ export class Planet {
       shape,
       material: this._params.groundMaterial,
       position: new CANNON.Vec3(fbx.position.x, fbx.position.y, fbx.position.z),
+      // Collide with everything regardless of partner group: the player and
+      // meteors use non-default groups so they never collide with each other.
+      collisionFilterGroup: 1,
+      collisionFilterMask: -1,
     });
 
     this._params.world.addBody(this._planetBody);

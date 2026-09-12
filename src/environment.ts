@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader.js';
 import {GAME_CONFIG} from './config';
-import {Ball, Stars, Moon, Planet, Meteor, Coin} from './objects';
+import {Ball, Stars, Moon, Planet, Meteor, Coin, Heart} from './objects';
+import {TargetRing} from './effects/targetRing';
 import {CharacterController} from './character';
 import {AudioManager} from './audio';
 
@@ -28,12 +29,17 @@ export class Environment {
   private _activeCoins: Map<string, Coin>;
   private _maxCoins = GAME_CONFIG.COINS.MAX_COINS;
   private _reservedCoins: Map<string, Coin>;
+  private _activeHearts: Map<string, Heart>;
+  private _maxHearts = GAME_CONFIG.HEARTS.MAX_HEARTS;
+  private _reservedHearts: Map<string, Heart>;
+  private _rings: TargetRing[] = [];
   private _maxMeteors: number;
   private _activeMeteors: Map<string, Meteor>;
   private _reservedMeteors: Map<string, Meteor>;
   private _meteorIncreaseInterval = GAME_CONFIG.METEORS.INCREASE_INTERVAL;
   private _meteorIncreaseTimer: number | null = null;
   private _meteorsRunning = false;
+  private _meteorSpawnCooldown = 0;
   private _maxMeteorsLimit = GAME_CONFIG.METEORS.MAX_COUNT;
   private _initialMeteors = GAME_CONFIG.METEORS.INITIAL_COUNT;
 
@@ -52,6 +58,8 @@ export class Environment {
     this._reservedMeteors = new Map<string, Meteor>();
     this._activeCoins = new Map<string, Coin>();
     this._reservedCoins = new Map<string, Coin>();
+    this._activeHearts = new Map<string, Heart>();
+    this._reservedHearts = new Map<string, Heart>();
     await Promise.all([
       this._createStars(),
       this._createMoon(),
@@ -59,6 +67,7 @@ export class Environment {
       this._createPlanet(),
       this._initialiseMeteors(),
       this._initialiseCoins(),
+      this._initialiseHearts(),
     ]);
   }
 
@@ -92,6 +101,9 @@ export class Environment {
   public resetCoins() {
     this._activeCoins.forEach(coin => {
       coin.hideCoin();
+    });
+    this._activeHearts.forEach(heart => {
+      heart.hide();
     });
     this.score = 0;
     this._params.onUpdateScore(this.score);
@@ -146,19 +158,22 @@ export class Environment {
     const meteorPromises = Array.from({length: this._maxMeteorsLimit}).map(
       async () => {
         const key = (Math.random() + 1).toString(36).substring(7);
+        const ring = new TargetRing({scene: this._params.scene});
+        this._rings.push(ring);
         const meteor = await Meteor.create({
           key,
           model: template,
           scene: this._params.scene,
           world: this._params.world,
           controller: this._params.controller,
-          onGameOver: this._params.onGameOver,
           atmosphereRadius: this._atmosphereRadius,
           planetRadius: this._params.planetRadius,
           groundMaterial: this._params.groundMaterial,
           activeMeteors: this._activeMeteors,
           reservedMeteors: this._reservedMeteors,
           showCoin: this._showCoin.bind(this),
+          showHeart: this._showHeart.bind(this),
+          ring,
           registerPhysicsBody: this._params.registerPhysicsBody,
           unregisterPhysicsBody: this._params.unregisterPhysicsBody,
         });
@@ -178,6 +193,17 @@ export class Environment {
     const [key, coin] = this._reservedCoins.entries().next().value ?? [];
     if (!key || !coin) return;
     coin.showCoin(position);
+  }
+
+  private _showHeart(position: THREE.Vector3) {
+    const [key, heart] = this._reservedHearts.entries().next().value ?? [];
+    if (!key || !heart) return;
+    heart.show(position);
+  }
+
+  private _onHeartCollected() {
+    if (this._params.controller.restoreHeart()) return;
+    this.addScore(5);
   }
 
   private async _initialiseCoins() {
@@ -200,6 +226,24 @@ export class Environment {
       this._reservedCoins.set(key, coin);
     });
     await Promise.all(coinPromises);
+  }
+
+  private async _initialiseHearts() {
+    const heartPromises = Array.from({length: this._maxHearts}).map(() => {
+      const key = (Math.random() + 1).toString(36).substring(7);
+      const heart = Heart.create({
+        key,
+        scene: this._params.scene,
+        controller: this._params.controller,
+        activeHearts: this._activeHearts,
+        reservedHearts: this._reservedHearts,
+        onCollect: this._onHeartCollected.bind(this),
+        audio: this._params.audio,
+      });
+      this._reservedHearts.set(key, heart);
+      return Promise.resolve();
+    });
+    await Promise.all(heartPromises);
   }
 
   private _loadFBXModel(path: string, directory: string): Promise<THREE.Group> {
@@ -229,20 +273,28 @@ export class Environment {
     });
   }
 
-  handlePhysicsObjects() {
+  handlePhysicsObjects(deltaSeconds: number) {
     if (this._ball) {
       this._ball.updatePosition();
     }
 
     if (this._activeMeteors.size < this._maxMeteors) {
-      this._createMeteor();
+      // Meteors now reach the ground quickly, so throttle spawns to avoid a
+      // constant barrage.
+      this._meteorSpawnCooldown -= deltaSeconds * 1000;
+      if (this._meteorSpawnCooldown <= 0) {
+        this._createMeteor();
+        this._meteorSpawnCooldown =
+          GAME_CONFIG.METEORS.SPAWN_INTERVAL * (0.7 + Math.random() * 0.6);
+      }
     }
 
     this._activeMeteors.forEach(meteor => {
-      meteor.updatePosition();
+      meteor.updatePosition(deltaSeconds);
     });
 
     this._activeCoins.forEach(coin => coin.animate());
+    this._activeHearts.forEach(heart => heart.animate());
   }
 
   animate() {
