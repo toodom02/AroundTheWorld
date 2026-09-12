@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { GAME_CONFIG } from '../config';
 
 type BallParams = {
   scene: THREE.Scene;
@@ -28,10 +27,12 @@ export class Ball {
   private async _init(): Promise<void> {
     const radius = 3;
 
-    const texture = await new THREE.TextureLoader().loadAsync('./resources/ball-texture.png');
+    const texture = await new THREE.TextureLoader().loadAsync(
+      './resources/ball-texture.png',
+    );
 
     const geometry = new THREE.SphereGeometry(radius);
-    const material = new THREE.MeshPhongMaterial({ map: texture });
+    const material = new THREE.MeshPhongMaterial({map: texture});
     this._ball = new THREE.Mesh(geometry, material);
     this._ball.castShadow = true;
     this._ball.receiveShadow = true;
@@ -51,7 +52,7 @@ export class Ball {
       this._ball.position.z,
     );
     this._params.world.addBody(this._ballBody);
-    
+
     if (this._params.registerPhysicsBody) {
       this._params.registerPhysicsBody(this._ballBody);
     }
@@ -80,12 +81,11 @@ export class Ball {
   private _reset(): void {
     if (!this._ballBody) return;
 
-    const { x, y, z } = this._params.initPosition;
+    const {x, y, z} = this._params.initPosition;
 
     this._ballBody.velocity.set(0, 0, 0);
     this._ballBody.position.set(x, y, z);
     this._ballBody.force.set(0, 0, 0);
-    this._ballBody.inertia.set(0, 0, 0);
     this._ballBody.angularVelocity.set(0, 0, 0);
   }
 }
