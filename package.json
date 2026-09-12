@@ -19,8 +19,8 @@
     "webpack-dev-server": "^6.0.0"
   },
   "scripts": {
-    "dev": "webpack serve",
-    "build": "webpack build",
+    "dev": "webpack serve --mode development",
+    "build": "webpack build --mode production",
     "lint": "gts lint",
     "clean": "gts clean",
     "compile": "tsc",
