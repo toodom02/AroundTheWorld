@@ -18,7 +18,7 @@ export class Moon {
 
   private _init(): void {
     const moonGeometry = new THREE.SphereGeometry(50, 32, 16);
-    const moonMaterial = new THREE.MeshPhongMaterial({ color: 0x900c3f });
+    const moonMaterial = new THREE.MeshPhongMaterial({color: 0x900c3f});
 
     this._moon = new THREE.Mesh(moonGeometry, moonMaterial);
     this._moon.castShadow = true;

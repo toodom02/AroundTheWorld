@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { CharacterControllerProxy } from './character';
-import { CharacterControllerInput } from './characterInput';
+import {CharacterControllerProxy} from './character';
+import {CharacterControllerInput} from './characterInput';
 
 type StateConstructor = new (parent: CharacterFSM) => State;
 
@@ -8,7 +8,7 @@ export class CharacterFSM {
   private _states: Map<string, StateConstructor>;
   private _currentState: State | null;
   private _proxy: CharacterControllerProxy;
-  
+
   constructor(proxy: CharacterControllerProxy) {
     this._states = new Map();
     this._currentState = null;
@@ -67,7 +67,7 @@ export class CharacterFSM {
 
 class State {
   protected _parent: CharacterFSM;
-  
+
   constructor(parent: CharacterFSM) {
     this._parent = parent;
   }
@@ -75,10 +75,10 @@ class State {
   get Name() {
     return '';
   }
-  
-  Enter(prevState: State | null) {}
+
+  Enter(_prevState: State | null) {}
   Exit() {}
-  Update(input: CharacterControllerInput) {}
+  Update(_input: CharacterControllerInput) {}
 }
 
 class IdleState extends State {
@@ -278,6 +278,5 @@ class DyingState extends State {
     curAction.play();
   }
 
-  Update(input: CharacterControllerInput) {
-  }
+  Update(_input: CharacterControllerInput) {}
 }

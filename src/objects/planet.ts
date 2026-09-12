@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
-import { ShapeType, threeToCannon } from 'three-to-cannon';
+import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader.js';
+import {ShapeType, threeToCannon} from 'three-to-cannon';
 
 type PlanetParams = {
   scene: THREE.Scene;
@@ -51,11 +51,7 @@ export class Planet {
       mass: 0,
       shape,
       material: this._params.groundMaterial,
-      position: new CANNON.Vec3(
-        fbx.position.x,
-        fbx.position.y,
-        fbx.position.z,
-      ),
+      position: new CANNON.Vec3(fbx.position.x, fbx.position.y, fbx.position.z),
     });
 
     this._params.world.addBody(this._planetBody);

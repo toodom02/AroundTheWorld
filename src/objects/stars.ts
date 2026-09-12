@@ -18,7 +18,9 @@ export class Stars {
   }
 
   private async _init(): Promise<void> {
-    const star = await new THREE.TextureLoader().loadAsync('./resources/star.svg');
+    const star = await new THREE.TextureLoader().loadAsync(
+      './resources/star.svg',
+    );
 
     const particlesGeometry = new THREE.BufferGeometry();
     const particlescnt = 2500;
@@ -33,15 +35,19 @@ export class Stars {
       // generates values outside of planet
       posArray[i] = (Math.random() - 0.5) * 1000;
       if (
-        Math.abs(posArray[i]) < this._params.planetRadius + this._params.atmosphereRadius
+        Math.abs(posArray[i]) <
+        this._params.planetRadius + this._params.atmosphereRadius
       ) {
         posArray[i + 1] = (Math.random() - 0.5) * 1000;
         if (
-          Math.abs(posArray[i + 1]) < this._params.planetRadius + this._params.atmosphereRadius
+          Math.abs(posArray[i + 1]) <
+          this._params.planetRadius + this._params.atmosphereRadius
         ) {
           posArray[i + 2] =
             (Math.random() *
-              (1000 - this._params.planetRadius - this._params.atmosphereRadius) +
+              (1000 -
+                this._params.planetRadius -
+                this._params.atmosphereRadius) +
               this._params.planetRadius +
               this._params.atmosphereRadius) *
             (Math.random() < 0.5 ? -1 : 1);
@@ -54,8 +60,14 @@ export class Stars {
       }
     }
 
-    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    this._particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+    particlesGeometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(posArray, 3),
+    );
+    this._particlesMesh = new THREE.Points(
+      particlesGeometry,
+      particlesMaterial,
+    );
     this._params.scene.add(this._particlesMesh);
   }
 

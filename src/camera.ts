@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { GAME_CONFIG } from './config';
-import { CharacterController } from './character';
+import {GAME_CONFIG} from './config';
+import {CharacterController} from './character';
 
 type ThirdPersonCameraParams = {
   camera: THREE.PerspectiveCamera;
@@ -37,7 +37,7 @@ export class ThirdPersonCamera {
   }
 
   private _CalculateIdealOffset(): THREE.Vector3 {
-    const { x, y, z } = GAME_CONFIG.CAMERA.OFFSET;
+    const {x, y, z} = GAME_CONFIG.CAMERA.OFFSET;
     this._idealOffset.set(x, y, z);
     this._idealOffset.applyQuaternion(this._target.Rotation);
     this._idealOffset.add(this._target.Position);
@@ -45,7 +45,7 @@ export class ThirdPersonCamera {
   }
 
   private _CalculateIdealLookat(): THREE.Vector3 {
-    const { x, y, z } = GAME_CONFIG.CAMERA.LOOKAT_OFFSET;
+    const {x, y, z} = GAME_CONFIG.CAMERA.LOOKAT_OFFSET;
     this._idealLookat.set(x, y, z);
     this._idealLookat.applyQuaternion(this._target.Rotation);
     this._idealLookat.add(this._target.Position);
@@ -60,7 +60,10 @@ export class ThirdPersonCamera {
 
     if (this._transitioning) {
       this._transitionTime += timeElapsed;
-      const progress = Math.min(this._transitionTime / this._transitionDuration, 1.0);
+      const progress = Math.min(
+        this._transitionTime / this._transitionDuration,
+        1.0,
+      );
       t = progress;
 
       if (progress >= 1.0) {
