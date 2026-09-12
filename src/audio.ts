@@ -17,7 +17,8 @@ export class AudioManager {
     const sound: Sound = {
       path,
       loop,
-      element: document.getElementById(`audio-${name}`) as HTMLAudioElement | undefined,
+      element: document.getElementById(`audio-${name}`) as
+        HTMLAudioElement | undefined,
     };
     if (sound.element) {
       sound.element.preload = 'auto';
@@ -51,7 +52,11 @@ export class AudioManager {
     element.volume = this._scaledVolume(volume);
     element.preload = 'auto';
     this._activeEffects.add(element);
-    element.addEventListener('ended', () => this._activeEffects.delete(element), { once: true });
+    element.addEventListener(
+      'ended',
+      () => this._activeEffects.delete(element),
+      {once: true},
+    );
     void element.play().catch(error => {
       this._activeEffects.delete(element);
       console.warn(`Unable to play sound "${name}".`, error);
@@ -142,5 +147,4 @@ export class AudioManager {
   private _scaledVolume(volume: number): number {
     return Math.min(1, Math.max(0, volume * this._volume));
   }
-
 }
