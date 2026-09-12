@@ -33,6 +33,7 @@ export class Environment {
   private _reservedMeteors: Map<string, Meteor>;
   private _meteorIncreaseInterval = GAME_CONFIG.METEORS.INCREASE_INTERVAL;
   private _meteorIncreaseTimer: number | null = null;
+  private _meteorsRunning = false;
   private _maxMeteorsLimit = GAME_CONFIG.METEORS.MAX_COUNT;
   private _initialMeteors = GAME_CONFIG.METEORS.INITIAL_COUNT;
 
@@ -98,22 +99,43 @@ export class Environment {
 
   public startMeteors() {
     this._maxMeteors = this._initialMeteors;
+    this._meteorsRunning = true;
     this._activeMeteors.forEach(meteor => {
       meteor.delete();
     });
+
+    this._startMeteorIncreaseTimer();
+  }
+
+  public pauseMeteors() {
+    if (this._meteorIncreaseTimer !== null) {
+      clearInterval(this._meteorIncreaseTimer);
+      this._meteorIncreaseTimer = null;
+    }
+  }
+
+  public resumeMeteors() {
+    if (this._meteorsRunning) {
+      this._startMeteorIncreaseTimer();
+    }
+  }
+
+  public stopMeteors() {
+    this._meteorsRunning = false;
+    if (this._meteorIncreaseTimer !== null) {
+      clearInterval(this._meteorIncreaseTimer);
+      this._meteorIncreaseTimer = null;
+    }
+  }
+
+  private _startMeteorIncreaseTimer() {
+    if (this._meteorIncreaseTimer !== null) return;
 
     this._meteorIncreaseTimer = window.setInterval(() => {
       if (this._maxMeteors < this._maxMeteorsLimit) {
         this._maxMeteors++;
       }
     }, this._meteorIncreaseInterval);
-  }
-
-  public stopMeteors() {
-    if (this._meteorIncreaseTimer) {
-      clearInterval(this._meteorIncreaseTimer);
-      this._meteorIncreaseTimer = null;
-    }
   }
 
   private async _initialiseMeteors() {

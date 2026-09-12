@@ -1,4 +1,4 @@
-import { AudioManager } from './audio';
+import {AudioManager} from './audio';
 
 type MenuParams = {
   onStart: () => void;
@@ -17,7 +17,7 @@ export class Menu {
   private _startButton: HTMLElement;
   private _restartButton: HTMLElement;
   private _overlay: HTMLElement;
-
+  private _lastScore = -1;
 
   constructor(params: MenuParams) {
     this._params = params;
@@ -31,7 +31,11 @@ export class Menu {
     this._gameOverElement = document.getElementById('gameover')!;
     this._gameOverScore = document.getElementById('gameover-score')!;
     this._musicControl = document.getElementById('music-control')!;
-    this._params.audio.preloadSound('music', './resources/background.mp3', true);
+    this._params.audio.preloadSound(
+      'music',
+      './resources/background.mp3',
+      true,
+    );
     this._params.audio.preloadSound('coin', './resources/coin.mp3');
     this._musicControl.classList.toggle('mute', this._params.audio.muted);
     this._startButton = document.getElementById('start-button')!;
@@ -41,9 +45,15 @@ export class Menu {
     this._musicControl.onclick = () => {
       const muted = this._params.audio.toggleMute();
       this._musicControl.classList.toggle('mute', muted);
-      this._musicControl.setAttribute('aria-label', muted ? 'Unmute music' : 'Mute music');
-      this._musicControl.setAttribute('title', muted ? 'Unmute music' : 'Mute music');
-    }
+      this._musicControl.setAttribute(
+        'aria-label',
+        muted ? 'Unmute music' : 'Mute music',
+      );
+      this._musicControl.setAttribute(
+        'title',
+        muted ? 'Unmute music' : 'Mute music',
+      );
+    };
   }
 
   EnableStartMenu() {
@@ -56,7 +66,7 @@ export class Menu {
       this._params.onStart();
       this._menuElement.style.display = 'none';
       this._scoreContainer.style.display = 'flex';
-    }
+    };
   }
 
   ShowGameOver(score: number) {
@@ -70,13 +80,13 @@ export class Menu {
       this._params.onRestart();
       this._gameOverElement.style.display = 'none';
       this._scoreContainer.style.display = 'flex';
-    }
+    };
   }
 
   UpdateScore(score: number) {
-    if (this._scoreElement) {
+    if (this._scoreElement && score !== this._lastScore) {
       this._scoreElement.innerText = score.toString();
+      this._lastScore = score;
     }
   }
-
 }
