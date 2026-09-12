@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
-import { CharacterController } from '../character';
+import {CollideEvent} from '../collide';
+import {CharacterController} from '../character';
 
 type MeteorParams = {
   key: string;
@@ -15,6 +15,7 @@ type MeteorParams = {
   reservedMeteors: Map<string, Meteor>;
   onGameOver: () => void;
   showCoin: (position: THREE.Vector3) => void;
+  model: THREE.Group; // shared, preloaded template; cloned per instance
   registerPhysicsBody?: (body: CANNON.Body) => void;
   unregisterPhysicsBody?: (body: CANNON.Body) => void;
 };
@@ -23,7 +24,9 @@ export class Meteor {
   private _mesh: THREE.Group;
   private _body: CANNON.Body;
   private _crash = false;
-  private _collideHandler: (event: any) => void;
+  private _collideHandler: (event: CollideEvent) => void;
+  private _collisionPos = new CANNON.Vec3();
+  private _showCoinPos = new THREE.Vector3();
 
   private constructor(private _params: MeteorParams) {}
 
@@ -34,13 +37,7 @@ export class Meteor {
   }
 
   private async _init(): Promise<void> {
-    const loader = new FBXLoader();
-    loader.setPath('./resources/models/');
-
-    const fbx: THREE.Group = await new Promise((resolve, reject) => {
-      loader.load('meteor.fbx', resolve, undefined, reject);
-    });
-
+    const fbx: THREE.Group = this._params.model.clone();
     fbx.traverse(c => {
       c.castShadow = true;
     });
@@ -64,15 +61,22 @@ export class Meteor {
       Math.random() * 5 - 1,
       Math.random() * 5 - 1,
     );
-    
-    this._collideHandler = (event: any) => {
+
+    this._collideHandler = (event: CollideEvent) => {
       if (this._crash) return;
-      const { contact } = event;
+      const {contact} = event;
       this._crash = true;
 
-      if (contact.bj.mass === 0) { // planet is static
-        const pos = contact.rj.vadd(contact.bj.position);
-        this._params.showCoin(new THREE.Vector3(pos.x, pos.y, pos.z));
+      if (contact.bj.mass === 0) {
+        // planet is static
+        contact.bj.position.vadd(contact.rj, this._collisionPos);
+        this._params.showCoin(
+          this._showCoinPos.set(
+            this._collisionPos.x,
+            this._collisionPos.y,
+            this._collisionPos.z,
+          ),
+        );
       }
 
       if (contact.bi.id === this._params.controller.body.id) {
